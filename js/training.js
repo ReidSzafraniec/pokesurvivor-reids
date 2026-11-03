@@ -8,7 +8,13 @@
 
   function create(data) {
     let game, activeRun, selectedDex, evolving, gentleEvolution;
-    let startFromTraining = false, returnToLobby = false;
+    let baseMonFor;
+    const statOrigins = new WeakMap();
+    let startFromTraining = false, returnToLobby = false, activeTab = 'moves';
+    const statLabels = {
+      hp: 'HP', pa: 'Ataque', sa: 'Ataque especial', df: 'Defensa',
+      sd: 'Defensa especial', spd: 'Velocidad'
+    };
 
     function species(dex) {
       if (!Object.hasOwn(data.pokemon, dex)) throw new RangeError('Unknown Pokemon: ' + dex);
@@ -119,6 +125,19 @@
       return eligible(save, dex, state(save, dex).level);
     }
 
+    function statsFor(dex) {
+      const baseline = baseMonFor(dex);
+      if (!baseline || !game.DB.save?.owned[dex]) return baseline;
+      const fraction = (state(game.DB.save, dex).level - 1) / (MAX_LEVEL - 1);
+      const factor = 1 + 0.5 * fraction;
+      const mon = { ...baseline };
+      for (const key of ['hp', 'pa', 'sa', 'df', 'sd']) mon[key] *= factor;
+      mon.spd *= 1 + 0.15 * fraction;
+      mon.atk = Math.max(mon.pa, mon.sa);
+      statOrigins.set(mon, { baseline, factor });
+      return mon;
+    }
+
     function setLoadout(save, dex, ids, now = Date.now()) {
       const allowed = available(save, dex);
       if (!Array.isArray(ids) || !ids.length || ids.length > MAX_MOVES ||
@@ -143,9 +162,19 @@
       return earned;
     }
 
-    function award(save, dex, performance) {
+    function learningMultiplier(save, dex) {
+      return 1 + 0.05 * Math.min(8, integer(save.pupg?.[dex]?.xp));
+    }
+
+    function award(save, dex, performance, multiplier = learningMultiplier(save, dex)) {
+      if (!Number.isFinite(multiplier) || multiplier < 1 || multiplier > 1.4) {
+        throw new RangeError('Invalid purchased learning multiplier');
+      }
       const before = state(save, dex), previous = available(save, dex);
-      let points = reward(performance), xp = before.xp;
+      let points = reward(performance) * multiplier, xp = before.xp;
+      if (!Number.isFinite(points) || points > Number.MAX_SAFE_INTEGER) {
+        throw new RangeError('Match XP exceeds the supported range');
+      }
       // Convert performance points at each crossed level, keeping saved official XP intact.
       let level = before.level;
       while (points > 0 && level < MAX_LEVEL) {
@@ -389,6 +418,50 @@
       return true;
     }
 
+    function buyPerk(dex, id) {
+      if (game.Game.state !== 'ui') throw new RangeError('Buy perks between matches');
+      const save = game.DB.save;
+      if (!save.owned[dex]) throw new RangeError('Train an owned Pokemon');
+      const perk = game.Upgrades.LIST.find(entry => entry.id === id);
+      if (!perk) throw new RangeError('Choose an available utility perk');
+      const rank = Math.min(perk.max, integer(save.pupg?.[dex]?.[id]));
+      if (rank === perk.max) throw new RangeError('This perk is already at its maximum');
+      const cost = game.Upgrades.cost(id, rank);
+      if (integer(save.coins) < cost) throw new RangeError('Not enough coins');
+      if (!object(save.pupg)) save.pupg = {};
+      if (!object(save.pupg[dex])) save.pupg[dex] = {};
+      save.coins -= cost;
+      save.pupg[dex][id] = rank + 1;
+      game.UI.refreshCoins();
+      return saveChanges();
+    }
+
+    function checkItemChange(dex) {
+      if (game.Game.state !== 'ui') throw new RangeError('Use training items between matches');
+      if (!game.DB.save.owned[dex]) throw new RangeError('Train an owned Pokemon');
+    }
+
+    function useNature(dex, id) {
+      checkItemChange(dex);
+      if (!Object.hasOwn(game.NATURE_BY, id) || game.Mons.natureOf(dex).id === id) {
+        throw new RangeError('Choose a different nature');
+      }
+      if (!game.Shop.take('mint')) throw new RangeError('Missing required training item');
+      game.Mons.setNature(dex, id);
+      return saveChanges();
+    }
+
+    function useAbility(dex, slot, item) {
+      checkItemChange(dex);
+      if (!['cap', 'caph'].includes(item) ||
+          !game.Mons.abilityChoices(dex, item === 'caph').includes(slot)) {
+        throw new RangeError('Choose an available ability');
+      }
+      if (!game.Shop.take(item)) throw new RangeError('Missing required training item');
+      game.Mons.setAbility(dex, slot);
+      return saveChanges();
+    }
+
     function dismissEvolution() {
       if (!evolving) return;
       clearTimeout(evolving.timer);
@@ -545,9 +618,121 @@
       return names[value] || value.split('-').map(word => word[0].toUpperCase() + word.slice(1)).join(' ');
     }
 
+    function showTab(tab, focus = false) {
+      activeTab = tab;
+      for (const id of ['moves', 'perks']) {
+        const selected = id === tab, button = $('training-tab-' + id);
+        button.setAttribute('aria-selected', String(selected));
+        button.tabIndex = selected ? 0 : -1;
+        $('training-panel-' + id).classList.toggle('hidden', !selected);
+        if (selected && focus) button.focus();
+      }
+    }
+
+    function renderSelector() {
+      const save = game.DB.save, select = $('training-mon');
+      select.replaceChildren();
+      for (const id of Object.keys(save.owned).map(Number).filter(id => game.DEX_BY[id])) {
+        select.append(new Option(game.DEX_BY[id].name + ' - ' + text('Nivel') + ' ' +
+          state(save, id).level, id));
+      }
+      select.value = selectedDex;
+      select.disabled = startFromTraining;
+      select.onchange = () => { selectedDex = +select.value; render(); };
+    }
+
+    function natureEffect(nature) {
+      return nature.up ? '+' + text(statLabels[nature.up]) + ' / -' + text(statLabels[nature.down])
+        : text('Neutral');
+    }
+
+    function applyTrainingChange(action) {
+      try {
+        if (action()) game.Audio.sfx('buy');
+      } catch (error) {
+        if (!(error instanceof RangeError)) throw error;
+        game.UI.toast(text('No se pudo aplicar. Revisa tus monedas, objetos y l\u00edmites.'), 3500);
+      }
+      render();
+    }
+
+    function renderStats(dex) {
+      const mon = statsFor(dex), nature = game.Mons.natureOf(dex);
+      $('training-stats').innerHTML = Object.entries(statLabels).map(([key, label]) => {
+        const modifier = nature.up === key ? ' nat-up' : nature.down === key ? ' nat-down' : '';
+        const value = ['pa', 'sa'].includes(key) ? '\u00d7' + mon[key].toFixed(2) : number(Math.round(mon[key]));
+        return '<div class="training-stat' + modifier + '"><span>' + escape(text(label)) +
+          (nature.up === key ? ' +10%' : nature.down === key ? ' -10%' : '') +
+          '</span><b>' + value + '</b></div>';
+      }).join('');
+      $('training-nature').textContent = text('Naturaleza') + ': ' +
+        game.Mons.name(nature.n) + ' (' + natureEffect(nature) + ')';
+      const ability = game.Mons.abilityOf(dex);
+      $('training-ability').textContent = text('Habilidad') + ': ' +
+        (game.Mons.abilityName(ability.id) || text('Sin habilidad'));
+      const effect = ability.id ? game.AbilityFX.of(ability.id, mon) : null;
+      $('training-ability-effect').textContent = effect ?
+        [effect.d, effect.d2].filter(Boolean).map(value => text(value)).join(' ') : '';
+      const select = $('training-nature-select');
+      select.replaceChildren();
+      for (const option of game.NATURES) {
+        if (option.id !== nature.id) select.append(new Option(game.Mons.name(option.n) +
+          ' (' + natureEffect(option) + ')', option.id));
+      }
+      $('training-mint').disabled = !game.Shop.count('mint');
+      $('training-mint').textContent = text('Usar Menta') + ' (' + game.Shop.count('mint') + ')';
+      $('training-mint').onclick = () => applyTrainingChange(() => useNature(dex, select.value));
+      for (const item of ['cap', 'caph']) {
+        const choices = game.Mons.abilityChoices(dex, item === 'caph'), picker = $('training-' + item + '-select');
+        picker.replaceChildren();
+        for (const slot of choices) {
+          picker.append(new Option(game.Mons.abilityName(game.Mons.slots(dex)[slot]) +
+            (slot === 2 ? ' (' + text('oculta') + ')' : ''), slot));
+        }
+        const button = $('training-' + item);
+        button.disabled = !choices.length || !game.Shop.count(item);
+        button.textContent = text(item === 'cap' ? 'Usar C\u00e1psula' : 'Usar C\u00e1psula oculta') +
+          ' (' + game.Shop.count(item) + ')';
+        button.onclick = () => applyTrainingChange(() => useAbility(dex, +picker.value, item));
+      }
+    }
+
+    function renderPerks(dex) {
+      const save = game.DB.save, list = $('training-perks');
+      $('training-coins').textContent = text('Pok\u00e9monedas') + ': ' + number(integer(save.coins));
+      list.replaceChildren();
+      for (const perk of game.Upgrades.LIST) {
+        const rank = Math.min(perk.max, integer(save.pupg?.[dex]?.[perk.id]));
+        const maxed = rank === perk.max, cost = maxed ? 0 : game.Upgrades.cost(perk.id, rank);
+        const row = document.createElement('div'), info = document.createElement('div');
+        row.className = 'panel upg-item training-perk';
+        const icon = document.createElement('div');
+        icon.className = 'ic';
+        icon.innerHTML = game.Icons.html(perk.icon, 28);
+        info.innerHTML = '<b>' + escape(text(perk.name)) + '</b><small>' + escape(text(perk.unit)) +
+          '</small><small>' + text('Nivel') + ' ' + rank + ' / ' + perk.max + '</small>';
+        const button = document.createElement('button');
+        button.id = 'training-perk-' + perk.id;
+        button.className = 'btn small';
+        button.disabled = maxed || integer(save.coins) < cost;
+        button.textContent = maxed ? text('Nivel m\u00e1ximo') : text('Comprar') + ' \u00b7 ' + number(cost);
+        button.setAttribute('aria-label', text(perk.name) + ': ' + button.textContent);
+        button.onclick = () => {
+          applyTrainingChange(() => buyPerk(dex, perk.id));
+          $('training-perk-' + perk.id).focus();
+        };
+        row.append(icon, info, button);
+        list.append(row);
+      }
+    }
+
     function render() {
       const save = game.DB.save, dex = selectedDex;
       const mon = game.DEX_BY[dex], value = state(save, dex), allowed = available(save, dex);
+      renderSelector();
+      renderStats(dex);
+      renderPerks(dex);
+      showTab(activeTab);
       $('training-name').textContent = mon.name;
       $('training-progress').innerHTML = progressHtml(dex);
       $('training-source').textContent = text('Datos de movimientos') + ': ' + sourceName(value.version);
@@ -629,7 +814,7 @@
       }
     }
 
-    function open(dex = game.DB.save.partner, play = false) {
+    function open(dex = game.DB.save.partner, play = false, tab = 'moves') {
       if (game.Game.state !== 'ui') {
         game.UI.toast(text('Cambia tus movimientos entre partidas.'), 3000);
         return;
@@ -637,16 +822,8 @@
       record(game.DB.save, dex);
       selectedDex = +dex;
       startFromTraining = play;
+      activeTab = tab;
       returnToLobby = game.UI.isOpen('scr-lobby') && !!game.Social.room;
-      const select = $('training-mon');
-      select.replaceChildren();
-      for (const id of Object.keys(game.DB.save.owned).map(Number).filter(id => game.DEX_BY[id])) {
-        select.append(new Option(game.DEX_BY[id].name + ' - ' + text('Nivel') + ' ' +
-          state(game.DB.save, id).level, id));
-      }
-      select.value = dex;
-      select.disabled = play;
-      select.onchange = () => { selectedDex = +select.value; render(); };
       game.UI.show('scr-training', true);
       render();
       $('training-back').focus();
@@ -660,21 +837,14 @@
       summary.innerHTML = progressHtml(dex);
       const button = document.createElement('button');
       button.className = 'btn small';
-      button.textContent = text('Elegir movimientos');
+      button.textContent = text('Entrenamiento');
       button.onclick = () => open(dex);
       summary.append(button);
       moves.before(summary);
     }
 
     function decorateUpgrades(dex) {
-      const panel = document.querySelector('#upg-list .bind-panel');
-      if (!panel) return;
-      panel.replaceChildren();
-      const button = document.createElement('button');
-      button.className = 'btn';
-      button.textContent = text('Elegir movimientos');
-      button.onclick = () => open(dex);
-      panel.append(button);
+      open(dex, false, 'perks');
     }
 
     function preparePlayer(player) {
@@ -687,7 +857,10 @@
       player.pokemonLevel = value.level;
       for (const id of value.loadout) player.addMove(id);
       player.slots = [player.moves.slice()];
-      activeRun = { player, save: game.DB.save, result: null };
+      activeRun = {
+        player, save: game.DB.save, result: null,
+        learning: learningMultiplier(game.DB.save, player.dex)
+      };
     }
 
     function install(context) {
@@ -698,6 +871,15 @@
         if (!game.Moves.BY_ID[id]) throw new Error('Unsupported combat move: ' + id);
       }
       game.Training = api;
+      baseMonFor = game.Mons.monFor.bind(game.Mons);
+      game.Mons.monFor = statsFor;
+      const originalTaken = game.Stats.taken;
+      game.Stats.taken = function (mon, category) {
+        const origin = mon && category && statOrigins.get(mon);
+        // Keep species defense caps, but let permanent growth benefit every player.
+        return origin ? originalTaken.call(this, origin.baseline, category) /
+          Math.pow(origin.factor, 0.35) : originalTaken.call(this, mon, category);
+      };
       addTranslations();
       const tackle = game.Moves.BY_ID.tackle;
       game.Moves.BY_ID.struggle = {
@@ -727,10 +909,18 @@
       game.startMoveOf = dex => state(game.DB.save, dex).loadout[0];
       game.startMove2Of = () => null;
       const oldPerks = game.Upgrades.perks;
-      game.Upgrades.perks = upgrades => ({ ...oldPerks(upgrades), startMoves: 1, bans: 0 });
-      const obsolete = new Set(['moves', 'start', 'start2', 'ban']);
+      game.Upgrades.perks = (upgrades = {}) => ({
+        ...oldPerks({ ...upgrades, hp: 0, atk: 0, spd: 0, def: 0 }),
+        startMoves: 1, bans: 0
+      });
+      const obsolete = new Set(['hp', 'atk', 'spd', 'def', 'moves', 'start', 'start2', 'ban']);
       game.Upgrades.LIST.splice(0, game.Upgrades.LIST.length,
         ...game.Upgrades.LIST.filter(upgrade => !obsolete.has(upgrade.id)));
+      const learning = game.Upgrades.LIST.find(upgrade => upgrade.id === 'xp');
+      if (learning) {
+        learning.name = 'Aprendizaje';
+        learning.unit = '+5% XP de partida y permanente';
+      }
       game.LevelUp.offer = (player, count = 3) =>
         temporaryOffers(game.LevelUp.STATS, player, game.U.pickN, count);
 
@@ -743,7 +933,7 @@
           const player = activeRun.player;
           activeRun.result = award(game.DB.save, player.dex, {
             time: details.time, kills: player.kills, bosses: player.bosses
-          });
+          }, activeRun.learning);
         }
         return originalEvent.call(this, event, details);
       };
@@ -806,6 +996,7 @@
 
       const originalShow = game.UI.show;
       game.UI.show = function (id, ...args) {
+        if (id === 'scr-upgrades') return open(game.DB.save.partner, false, 'perks');
         if (id !== 'scr-evolution') dismissEvolution();
         if (id !== 'scr-progress') $('scr-progress').classList.add('hidden');
         originalShow.call(this, id, ...args);
@@ -824,6 +1015,19 @@
         $('menu-training').insertAdjacentHTML('afterbegin',
           '<span class="mi-ico">' + game.Icons.html('book', 26) + '</span>');
         $('menu-training').onclick = () => open();
+        for (const [index, tab] of ['moves', 'perks'].entries()) {
+          const button = $('training-tab-' + tab);
+          button.onclick = () => showTab(tab);
+          button.onkeydown = event => {
+            let target;
+            if (['ArrowLeft', 'ArrowRight'].includes(event.key)) target = 1 - index;
+            else if (event.key === 'Home') target = 0;
+            else if (event.key === 'End') target = 1;
+            else return;
+            event.preventDefault();
+            showTab(['moves', 'perks'][target], true);
+          };
+        }
         $('training-back').onclick = () => {
           if (returnToLobby && game.Social.room) game.LobbyUI.open();
           else game.MenuUI.open();
@@ -855,6 +1059,36 @@
     function addTranslations() {
       game.I18n.add({
         'Entrenamiento': 'Training',
+        'Estad\u00edsticas, movimientos y ventajas': 'Stats, moves and perks',
+        'Tu Pok\u00e9mon crece con cada nivel permanente. Prepara sus movimientos y compra ventajas.':
+          'Your Pokemon grows with each permanent level. Prepare its moves and buy perks.',
+        'Estad\u00edsticas del juego': 'Game stats',
+        'Del nivel 1 al 100: +50% de HP, ataques y defensas; +15% de velocidad. La naturaleza modifica un +10% y un -10% sus estad\u00edsticas indicadas.':
+          'From level 1 to 100: +50% HP, attacks and defenses; +15% Speed. Nature raises one indicated stat by 10% and lowers another by 10%.',
+        'Ataque': 'Attack',
+        'Ataque especial': 'Special Attack',
+        'Defensa': 'Defense',
+        'Defensa especial': 'Special Defense',
+        'Velocidad': 'Speed',
+        'Naturaleza': 'Nature',
+        'Habilidad': 'Ability',
+        'Sin habilidad': 'No ability',
+        'Cambiar naturaleza o habilidad': 'Change nature or ability',
+        'Usa tus objetos de la mochila. Consigue Mentas y C\u00e1psulas en la Tienda Kecleon.':
+          'Use items from your bag. Get Mints and Capsules at the Kecleon Shop.',
+        'Usar Menta': 'Use Mint',
+        'Usar C\u00e1psula': 'Use Capsule',
+        'Usar C\u00e1psula oculta': 'Use Hidden Capsule',
+        'Habilidad oculta': 'Hidden ability',
+        'Movimientos': 'Moves',
+        'Ventajas': 'Perks',
+        'Ventajas permanentes': 'Permanent perks',
+        'Las ventajas son de cada Pok\u00e9mon. Aprendizaje aumenta tanto la XP de partida como la permanente. HP, ataques, defensas y velocidad crecen con el nivel, sin monedas.':
+          'Perks belong to each Pokemon. Learning speed increases both run XP and permanent XP. HP, attacks, defenses and Speed grow with levels, not coins.',
+        'Aprendizaje': 'Learning speed',
+        '+5% XP de partida y permanente': '+5% run XP and permanent XP',
+        'No se pudo aplicar. Revisa tus monedas, objetos y l\u00edmites.':
+          'Could not apply. Check your coins, items and limits.',
         'Niveles y cuatro movimientos': 'Levels and four moves',
         'Elegir movimientos': 'Choose moves',
         'Nivel permanente': 'Permanent level',
@@ -893,7 +1127,8 @@
         'Nuevos movimientos': 'New moves',
         'Nivel de la partida': 'Run level',
         'Partida': 'Run',
-        'Progreso permanente: movimientos y evoluciones.': 'Permanent progress: moves and evolutions.',
+        'Progreso permanente: estad\u00edsticas, movimientos y evoluciones.':
+          'Permanent progress: stats, moves and evolutions.',
         'Este nivel y sus mejoras se reinician en cada partida.':
           'This level and its upgrades reset each run.',
         'Preparar partida': 'Prepare for a match',
@@ -924,8 +1159,9 @@
     }
 
     const api = {
-      START_LEVEL, MAX_LEVEL, MAX_MOVES, xpAt, levelAt, normalize, state, available,
-      setLoadout, reward, award, merge, pendingEvolution, cancelEvolution, evolve,
+      START_LEVEL, MAX_LEVEL, MAX_MOVES, xpAt, levelAt, normalize, state, available, statsFor,
+      setLoadout, reward, award, learningMultiplier, buyPerk, useNature, useAbility,
+      merge, pendingEvolution, cancelEvolution, evolve,
       isBase, baseOf, gachaEligible, gachaCollection, gachaPool, gachaRates,
       temporaryOffers, install, open, openEvolution,
       preparePlayer, decorateDex, decorateUpgrades

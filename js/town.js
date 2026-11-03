@@ -7,7 +7,6 @@
     ['play', 'Expediciones', 88, 112, '#bd6651', 'ball'],
     ['training', 'Entrenamiento', 344, 112, '#6887b5', 'book'],
     ['dex', 'Pok\u00e9mon', 600, 112, '#779b68', 'book'],
-    ['upgrades', 'Mejoras', 856, 112, '#ad8953', 'up'],
     ['friends', 'Amigos', 88, 368, '#8e79b1', 'friends'],
     ['rank', 'Ranking', 600, 368, '#b49751', 'trophy'],
     ['settings', 'Ajustes', 856, 368, '#6d9199', 'settings'],
