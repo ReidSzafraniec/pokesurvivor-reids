@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate the offline level-up catalog from a pinned PokeAPI CSV checkout."""
+"""Generate offline learnsets and level evolutions from pinned PokeAPI CSVs."""
 
 import argparse
 import csv
@@ -50,6 +50,42 @@ def build(csv_dir=None):
         for row in rows("pokemon.csv") if row["is_default"] == "1"
     }
     species = {int(row["id"]): row for row in rows("pokemon_species.csv")}
+    default_forms = {
+        int(row["pokemon_id"]): int(row["id"])
+        for row in rows("pokemon_forms.csv") if row["is_default"] == "1"
+    }
+    evolutions = {}
+    metadata = {
+        "id", "evolved_species_id", "evolution_trigger_id", "version_group_id",
+        "is_default", "minimum_level", "required_pokemon_form_id",
+        "evolved_pokemon_form_id",
+    }
+    flags = {
+        "needs_overworld_rain", "turn_upside_down", "needs_multiplayer", "near_special_rock",
+    }
+    for row in rows("pokemon_evolution.csv"):
+        target = int(row["evolved_species_id"])
+        parent = species[target]["evolves_from_species_id"]
+        if not parent or row["evolution_trigger_id"] != "1" or row["is_default"] != "1":
+            continue
+        if not row["minimum_level"]:
+            continue
+        parent = int(parent)
+        if any(value not in (("", "0") if key in flags else ("",))
+               for key, value in row.items() if key not in metadata):
+            continue
+        if row["required_pokemon_form_id"] and int(row["required_pokemon_form_id"]) != default_forms[defaults[parent]]:
+            continue
+        if row["evolved_pokemon_form_id"] and int(row["evolved_pokemon_form_id"]) != default_forms[defaults[target]]:
+            continue
+        level = int(row["minimum_level"])
+        if not 1 <= level <= 100:
+            raise ValueError(f"Invalid evolution level for species {target}")
+        previous = evolutions.setdefault(parent, {}).setdefault(target, level)
+        if previous != level:
+            raise ValueError(f"Conflicting default evolution levels for species {target}")
+    # Version-dependent branches have no single unconditional target.
+    evolutions = {parent: targets for parent, targets in evolutions.items() if len(targets) == 1}
     move_rows = {int(row["id"]): row for row in rows("moves.csv")}
     supported_ids = {
         key: row["identifier"] for key, row in move_rows.items()
@@ -94,6 +130,10 @@ def build(csv_dir=None):
             version = max(available, key=lambda v: versions[v]["order"])
         pokemon[dex] = {
             "growth": int(row["growth_rate_id"]),
+            "prevo": int(row["evolves_from_species_id"] or 0),
+            "evolutions": sorted(
+                [[target, level] for target, level in evolutions.get(dex, {}).items()]
+            ),
             "version": version,
             "moves": sorted(
                 [[supported_ids[move], level] for move, level in available[version].items()],

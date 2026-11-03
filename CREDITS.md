@@ -129,13 +129,17 @@ uso **no comercial** y con atribución a sus artistas.
 Stats base y nombres en español: [PokeAPI](https://pokeapi.co/),
 descargados una vez y guardados en `js/data/pokedex.js`.
 
-Listas de movimientos por nivel, compatibilidad de MT, nombres de movimientos
-y curvas de experiencia de `js/data/learnsets.js`: CSV de
+Listas de movimientos por nivel, compatibilidad de MT, nombres de movimientos,
+curvas de experiencia, ascendencia y niveles de evolución de
+`js/data/learnsets.js`: CSV de
 [PokeAPI, revisión e5b79b2e15d7c50735a945936afd4cd1cfd94eae](https://github.com/PokeAPI/pokeapi/tree/e5b79b2e15d7c50735a945936afd4cd1cfd94eae/data/v2/csv),
 generados con `tools/generate_learnsets.py`. Se usa Escarlata/Púrpura cuando hay
 datos de nivel; en caso contrario, el juego más reciente disponible para la
-forma predeterminada de cada especie. Se filtran los movimientos que el motor
-de combate ya implementa, sin alterar sus niveles oficiales. No se consulta la
+forma predeterminada de cada especie. Las evoluciones incluidas no requieren
+condiciones adicionales al nivel y corresponden a las formas predeterminadas;
+las ramas dependientes de la versión se reservan para más adelante.
+Se filtran los movimientos que el motor de combate ya implementa, sin alterar
+sus niveles oficiales. No se consulta la
 API durante la partida. Licencia de PokeAPI:
 [`js/data/POKEAPI-LICENSE.txt`](js/data/POKEAPI-LICENSE.txt).
 

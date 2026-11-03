@@ -87,13 +87,35 @@ no guardan progreso al cerrar o recargar.
 
 ## Entrenamiento persistente
 
-Cada Pokémon empieza en **nivel 1** y conserva su experiencia hasta el **nivel
-100**, con su curva de crecimiento oficial. Al terminar una partida (también al
-salir desde la pausa) gana `floor(segundos × 2) + enemigos × 3 + jefes × 200` XP.
-El nivel de Pokémon desbloquea movimientos; no añade otra escala permanente de
-estadísticas. El nivel temporal de la partida sigue dando mejoras de estadísticas
-y los objetos y vínculos siguen funcionando, pero ya no se consiguen, mejoran ni
+Hay **dos niveles independientes**. El **nivel de la partida** empieza en 1,
+sube al recoger XP y da mejoras temporales de estadísticas; tanto el nivel como
+esas mejoras se reinician en cada partida. No desbloquea movimientos ni evoluciones.
+Los objetos y vínculos siguen funcionando, pero ya no se consiguen, mejoran ni
 evolucionan ataques con las cartas de nivel.
+
+El **nivel permanente de Pokémon** empieza en 1 y llega hasta 100. Solo gana XP
+al terminar una partida (también al salir desde la pausa), según el tiempo
+sobrevivido y los Pokémon derrotados, con un extra por jefes. Desbloquea movimientos
+y evoluciones a sus niveles oficiales; no añade otra escala permanente de
+estadísticas. La XP de las esferas y sus multiplicadores solo afectan al nivel
+temporal. Se conserva toda la XP permanente que ya tenías.
+
+El rendimiento se convierte primero en
+`floor(segundos / 2 + sqrt(segundos × derrotados) / 4 + jefes × 15)` puntos.
+El extra por derrotados tiene rendimientos decrecientes para que las grandes
+hordas no disparen los niveles; dividir una partida en varias no aumenta sus
+puntos totales para el mismo rendimiento. Los puntos se convierten en XP usando
+la curva oficial de cada especie: antes del nivel 10, cada punto da
+`max(1, XP oficial del nivel 10 / 600)` XP; desde el 10 da
+`1 + (nivel - 10) / 3` XP. La conversión se recalcula al cruzar cada nivel
+y solo se redondea hacia abajo al guardar la XP final.
+
+La referencia de equilibrio es **nivel 10 en unos 10–15 minutos** entre partidas
+cortas y **nivel 36 en unas 2–3 horas** para un inicial típico. Por ejemplo,
+partidas de 5 minutos con 150 derrotados y 2 jefes llegan al 10 en 15 minutos
+y al 36 en unos 160 minutos; las de 3 minutos con 60 derrotados y 1 jefe
+tardan 15 y 171 minutos. No son plazos garantizados: dependen del rendimiento
+y del grupo de crecimiento, que sigue siendo distinto después del nivel 10.
 
 En **Entrenamiento**, o al pulsar **Jugar**, eliges entre uno y **cuatro
 movimientos distintos**, con al menos un ataque. Se equipan desde el inicio de
@@ -101,7 +123,43 @@ la partida y no se cambian mientras juegas. Todos los movimientos oficiales de
 su nivel inicial que estén implementados están disponibles desde el principio,
 con hasta cuatro equipados. Subir de nivel desbloquea opciones
 para elegir después: no sustituye automáticamente tu equipo. La versión normal
-y shiny comparten nivel y movimientos; cada especie tiene progreso independiente.
+y shiny comparten nivel y movimientos.
+
+### Evoluciones
+
+Las evoluciones por nivel usan sus **niveles oficiales**: Charmander al 16,
+Charmeleon al 36, Magikarp al 20, etc. Solo se ofrecen en la **pantalla de XP y
+resultados al terminar la partida**, cuando esa recompensa hace subir el nivel
+del Pokémon. No se activan al abrir el menú, Entrenamiento ni al preparar otra
+partida. Si una recompensa supera varios niveles, se ofrece la evolución al
+nivel alcanzado; también se pueden encadenar varias etapas si ya se cumplen sus
+requisitos. Si el Pokémon ya había alcanzado el requisito, debe subir otro nivel
+con la recompensa de una partida para recibir la oferta.
+
+La animación clásica alterna las siluetas de ambas formas. Puedes pulsar
+**Detener evolución**, `B` o `Esc`: el Pokémon conserva su forma y vuelve a
+intentarlo **al subir otro nivel**, no al comenzar otra partida ni al recargar.
+La opción **Animación suave** elimina los destellos y también se respetan las
+preferencias de movimiento reducido del dispositivo.
+
+Al evolucionar se **reemplaza la forma anterior**, conservando nivel, XP,
+movimientos aprendidos, shiny, mejoras, naturaleza y posición de habilidad.
+Los movimientos aprendidos antes de evolucionar siguen disponibles aunque no
+estén en la lista de nivel de la nueva especie. Si ya tenías la especie de
+destino, se conservan la XP y las mejoras máximas. Puedes volver a conseguir la
+forma base en el gacha; empezará un entrenamiento nuevo en nivel 1.
+
+El **gacha solo entrega formas base**, tanto normales como shiny, en todos sus
+banners y tamaños de tirada. Las formas evolucionadas que ya tenías no se
+eliminan. Las probabilidades mostradas reflejan los grupos disponibles; si falta
+una rareza, se busca la más cercana, prefiriendo la superior para mantener la
+garantía de Épica o superior. Evolucionar no quita el progreso de colección de
+esa familia para el Amuleto Iris.
+
+Por ahora se incluyen **317 evoluciones exclusivamente por nivel**. Las piedras,
+intercambios, amistad y requisitos especiales (hora, sexo, estadísticas,
+movimientos conocidos, versión o formas regionales) quedan pendientes; no se
+inventan niveles para sustituirlos.
 
 Esta primera versión usa los **103 movimientos de combate ya implementados**:
 no incluye todos los ataques de los juegos oficiales y mantiene su adaptación al
@@ -123,8 +181,8 @@ por su fecha de edición.
 
 `js/training.js` contiene el modelo legible y la integración; `js/app.min.js`
 conserva el motor existente con hooks puntuales. `js/data/learnsets.js` incluye
-los datos sin consultas a PokeAPI durante el juego. La revisión de origen y su
-licencia están en [CREDITS.md](CREDITS.md).
+los datos de movimientos, ascendencia y evoluciones sin consultas a PokeAPI
+durante el juego. La revisión de origen y su licencia están en [CREDITS.md](CREDITS.md).
 
 ```sh
 # Python 3; descarga CSV de una revisión fija de PokeAPI.
@@ -132,7 +190,7 @@ python tools/generate_learnsets.py
 # O reutiliza los CSV descargados:
 python tools/generate_learnsets.py --csv-dir /ruta/a/csv
 # Node.js 18+, sin dependencias adicionales:
-node --test tests/training.test.cjs
+node --test tests/*.test.cjs
 ```
 
 ## Guardado en la nube y publicación

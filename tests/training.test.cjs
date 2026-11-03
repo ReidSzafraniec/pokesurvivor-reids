@@ -97,15 +97,112 @@ test('evolution moves belong only to the current species', () => {
 });
 
 test('match performance awards XP to only the played Pokemon and crosses exact thresholds', () => {
-  const save = saveFor(4, 7), before = training.state(save, 4);
-  const target = training.xpAt(4, 12), needed = target - before.xp;
-  const first = training.award(save, 4, { time: (needed - 1) / 2, kills: 0, bosses: 0 });
+  const save = saveFor(4, 7);
+  atLevel(save, 4, 11);
+  save.training[4].xp = training.xpAt(4, 12) - 1;
+  assert(!training.available(save, 4).includes('dragon-breath'));
+  const first = training.award(save, 4, { time: 1, kills: 0, bosses: 0 });
+  assert.equal(first.gained, 0);
   assert.equal(first.after.level, 11);
-  const second = training.award(save, 4, { time: 0.5, kills: 0, bosses: 0 });
+  const second = training.award(save, 4, { time: 2, kills: 0, bosses: 0 });
   assert.equal(second.after.level, 12);
   assert(second.unlocked.includes('dragon-breath'));
   assert.equal(training.state(save, 7).level, 1);
-  assert.equal(training.reward({ time: 60, kills: 10, bosses: 1 }), 350);
+  assert.equal(training.reward({ time: 60, kills: 10, bosses: 1 }), 51);
+});
+
+test('permanent rewards favor survival and defeats without excessive horde scaling or quit farming', () => {
+  const reward = (time, kills, bosses = 0) => training.reward({ time, kills, bosses });
+  assert.equal(reward(0, 0), 0);
+  assert.equal(reward(180, 0), 90);
+  assert.equal(reward(180, 60, 1), 130);
+  assert.equal(reward(300, 150, 2), 233);
+  assert.equal(reward(300, 150, 3) - reward(300, 150, 2), 15);
+  assert(reward(300, 150) > reward(180, 150));
+  assert(reward(300, 150) > reward(300, 60));
+  const low = reward(300, 100), middle = reward(300, 200), high = reward(300, 300);
+  assert(high - middle < middle - low);
+  assert(reward(1800, 10000, 20) < 2300);
+  for (const [time, kills, bosses, parts] of [[300, 150, 2, 2], [1800, 900, 12, 6]]) {
+    assert(reward(time, kills, bosses) >= parts * reward(time / parts, kills / parts, bosses / parts));
+  }
+});
+
+test('early training boost ends at level 10 and later XP is converted at every crossed level', () => {
+  const slow = saveFor(129);
+  assert.equal(training.award(slow, 129, { time: 1200, kills: 0, bosses: 0 }).after.level, 10);
+  assert.equal(training.state(slow, 129).xp, training.xpAt(129, 10));
+  assert.equal(training.award(slow, 129, { time: 2, kills: 0, bosses: 0 }).gained, 1);
+
+  const save = saveFor(4);
+  atLevel(save, 4, 12);
+  const cost = (training.xpAt(4, 13) - training.xpAt(4, 12)) / (1 + 2 / 3);
+  const points = Math.ceil(cost) + 60;
+  const result = training.award(save, 4, { time: points * 2, kills: 0, bosses: 0 });
+  assert.equal(result.after.level, 13);
+  assert.equal(result.after.xp, training.xpAt(4, 13) + Math.floor((points - cost) * 2));
+  assert.equal(result.earned, result.gained);
+
+  const erraticDex = +Object.keys(data.pokemon).find(dex => data.pokemon[dex].growth === 5);
+  assert.equal(training.award(saveFor(erraticDex), erraticDex, {
+    time: 60, kills: 10, bosses: 1
+  }).gained, 153);
+});
+
+test('all growth groups reach level 10 in 10-15 minutes of representative short runs', () => {
+  for (const growth of Object.keys(data.growth)) {
+    const dex = +Object.keys(data.pokemon).find(id => data.pokemon[id].growth === +growth);
+    for (const performance of [
+      { time: 180, kills: 60, bosses: 1 }, { time: 300, kills: 150, bosses: 2 }
+    ]) {
+      let save = saveFor(dex), minutes = 0;
+      while (training.state(save, dex).level < 10 && minutes < 20) {
+        training.award(save, dex, performance);
+        minutes += performance.time / 60;
+        save = JSON.parse(JSON.stringify(save));
+        training.normalize(save);
+      }
+      assert(minutes >= 10 && minutes <= 15, 'Growth ' + growth + ': ' + minutes + ' minutes');
+    }
+  }
+});
+
+test('typical starters reach level 36 in 2-3 hours, with slower later levels', () => {
+  for (const dex of [1, 4, 7, 152, 252, 387, 495, 650, 722, 810, 906]) {
+    for (const performance of [
+      { time: 180, kills: 60, bosses: 1 }, { time: 300, kills: 150, bosses: 2 },
+      { time: 600, kills: 600, bosses: 5 }
+    ]) {
+      const save = saveFor(dex), reached = {};
+      let minutes = 0;
+      while (training.state(save, dex).level < 50 && minutes < 600) {
+        const result = training.award(save, dex, performance);
+        minutes += performance.time / 60;
+        for (const level of [10, 20, 36, 50]) {
+          if (result.after.level >= level && !reached[level]) reached[level] = minutes;
+        }
+      }
+      assert(reached[36] >= 120 && reached[36] <= 180, 'Starter ' + dex + ': ' + reached[36]);
+      assert(reached[20] - reached[10] > reached[10]);
+      assert((reached[50] - reached[36]) / 14 > (reached[20] - reached[10]) / 10);
+    }
+  }
+});
+
+test('rebalancing preserves already-earned official XP, levels and selected moves', () => {
+  const save = saveFor(4, 25);
+  atLevel(save, 4, 36);
+  atLevel(save, 25, 80);
+  training.setLoadout(save, 4, ['ember', 'dragon-breath']);
+  const before = [4, 25].map(dex => training.state(save, dex));
+  const reloaded = JSON.parse(JSON.stringify(save));
+  const model = create(data);
+  model.normalize(reloaded);
+  assert.deepEqual([4, 25].map(dex => model.state(reloaded, dex)), before);
+  model.award(reloaded, 4, { time: 300, kills: 150, bosses: 2 });
+  assert(model.state(reloaded, 4).xp > before[0].xp);
+  assert.deepEqual(model.state(reloaded, 4).loadout, before[0].loadout);
+  assert.deepEqual(model.state(reloaded, 25), before[1]);
 });
 
 test('levels and XP cap at 100 without invalid progress bars', () => {
@@ -117,6 +214,7 @@ test('levels and XP cap at 100 without invalid progress bars', () => {
   assert.equal(result.after.progress, 1);
   assert.equal(result.after.remaining, 0);
   assert.equal(training.award(save, 4, { time: 10, kills: 1, bosses: 0 }).gained, 0);
+  assert.equal(training.award(save, 4, { time: 0, kills: 0, bosses: 0 }).earned, 0);
 });
 
 test('invalid performance and invalid levels are explicitly rejected', () => {
@@ -124,6 +222,11 @@ test('invalid performance and invalid levels are explicitly rejected', () => {
     assert.throws(() => training.reward({ time, kills: 0, bosses: 0 }), RangeError);
   }
   assert.throws(() => training.reward({ time: 1, kills: 0.1, bosses: 0 }), RangeError);
+  for (const field of ['kills', 'bosses']) {
+    for (const value of [-1, NaN, Infinity, 0.1, Number.MAX_SAFE_INTEGER + 1]) {
+      assert.throws(() => training.reward({ time: 60, kills: 0, bosses: 0, [field]: value }), RangeError);
+    }
+  }
   for (const level of [0, 101, 2.5]) assert.throws(() => training.xpAt(4, level), RangeError);
   assert.throws(() => training.state(saveFor(4), 7), RangeError);
   assert.throws(() => training.state(saveFor(4), '__proto__'), RangeError);
@@ -133,8 +236,7 @@ test('unlocking an attack never replaces an already valid loadout', () => {
   const save = saveFor(4);
   atLevel(save, 4, 4);
   training.setLoadout(save, 4, ['ember']);
-  const needed = training.xpAt(4, 12) - training.state(save, 4).xp;
-  training.award(save, 4, { time: needed / 2, kills: 0, bosses: 0 });
+  training.award(save, 4, { time: 3000, kills: 0, bosses: 0 });
   assert(training.available(save, 4).includes('dragon-breath'));
   assert.deepEqual(training.state(save, 4).loadout, ['ember']);
 });
@@ -275,6 +377,100 @@ function makePlayer(dex) {
   };
 }
 
+function loadNativePlayer(context) {
+  const source = fs.readFileSync(require.resolve('../js/app.min.js'), 'utf8');
+  const runtime = vm.createContext({ _0x599208: context });
+  const bootstrap = source.slice(0, source.indexOf('const a0_0xc9496a=')) +
+    source.slice(source.lastIndexOf('function a0_0x48f4()'));
+  vm.runInContext(bootstrap, runtime, { timeout: 3000 });
+  runtime._0x48be02 = runtime.a0_0x422d;
+  const start = source.indexOf("_0x599208['Player']=class");
+  const end = source.indexOf(",_0x599208['Stats']=", start);
+  assert(start > 0 && end > start);
+  vm.runInContext(source.slice(start, end), runtime, { timeout: 3000 });
+  context.Sprites = {
+    hasShiny: () => false, playerScale: () => 1, playerRadius: () => 8,
+    bodyHeight: () => 16, Animator: class {}
+  };
+  context.Moves.instance = id => ({ ...context.Moves.BY_ID[id], lvl: 1 });
+  context.Game.st = { time: 0 };
+}
+
+test('actual run levels and power-ups reset while permanent levels and move unlocks survive', () => {
+  const { model, context, save } = installFixture();
+  save.owned[4] = { at: 1, from: 'test' };
+  atLevel(save, 4, 3);
+  loadNativePlayer(context);
+  const mon = { dex: 4, hp: 100, atk: 10, spd: 100 };
+  const player = new context.Player(mon, { xpMul: 2 });
+  context.Game.player = player;
+  model.preparePlayer(player);
+  const before = model.state(save, 4);
+  assert.equal(player.level, 1);
+  assert.equal(player.xp, 0);
+  assert.equal(player.pokemonLevel, 3);
+  assert.equal(player.gainXp(player.xpNext / 2), 1);
+  assert.equal(player.level, 2);
+  context.LevelUp.STATS = [{
+    id: 'hp', title: 'HP', max: 3,
+    apply(target) { target.maxHp += 20; target.hp += 20; }
+  }];
+  const offers = context.LevelUp.offer(player);
+  assert(offers.every(offer => offer.type === 'stat'));
+  offers[0].apply(player);
+  context.Progress.event('levelUp', { level: player.level });
+  assert.equal(player.maxHp, 120);
+  assert.equal(player.statsTaken.hp, 1);
+  assert.deepEqual(model.state(save, 4), before);
+  assert(!model.available(save, 4).includes('ember'));
+  assert.deepEqual(Array.from(player.moves, move => move.id), ['struggle']);
+
+  player.kills = 60;
+  player.bosses = 1;
+  context.Progress.event('runEnd', { time: 180 });
+  assert.equal(model.state(save, 4).xp, before.xp + 130);
+  assert(model.available(save, 4).includes('ember'));
+  assert.equal(player.level, 2);
+  assert.equal(player.pokemonLevel, 3);
+  assert.deepEqual(Array.from(player.moves, move => move.id), ['struggle']);
+
+  const permanent = model.state(save, 4);
+  context.DB.save = JSON.parse(JSON.stringify(save));
+  model.normalize(context.DB.save);
+  assert.deepEqual(model.state(context.DB.save, 4), permanent);
+  model.setLoadout(context.DB.save, 4, ['ember']);
+  const next = new context.Player(mon);
+  context.Game.player = next;
+  model.preparePlayer(next);
+  assert.equal(next.level, 1);
+  assert.equal(next.xp, 0);
+  assert.equal(next.xpNext, context.Player.xpFor(1));
+  assert.equal(next.pokemonLevel, permanent.level);
+  assert.equal(next.maxHp, 100);
+  assert.equal(Object.keys(next.statsTaken).length, 0);
+  assert.deepEqual(Array.from(next.moves, move => move.id), ['ember']);
+});
+
+test('actual orb XP multipliers affect temporary levels, never permanent performance rewards', () => {
+  const results = [];
+  for (const xpMul of [1, 10]) {
+    const { model, context, save } = installFixture();
+    loadNativePlayer(context);
+    const player = new context.Player({ dex: 25, hp: 100, atk: 10, spd: 100 }, { xpMul });
+    context.Game.player = player;
+    model.preparePlayer(player);
+    player.gainXp(1000);
+    const runLevel = player.level;
+    assert.equal(model.state(save, 25).xp, 0);
+    player.kills = 150;
+    player.bosses = 2;
+    context.Progress.event('runEnd', { time: 300 });
+    results.push({ runLevel, permanent: model.state(save, 25) });
+  }
+  assert(results[1].runLevel > results[0].runLevel);
+  assert.deepEqual(results[1].permanent, results[0].permanent);
+});
+
 test('integration equips the exact selected four without changing the temporary run level', () => {
   const { model, context, save } = installFixture();
   atLevel(save, 25, 40);
@@ -304,15 +500,15 @@ test('integration awards performance XP before forwarding runEnd, and only once 
   model.preparePlayer(player);
   const details = { time: 60 };
   assert.equal(context.Progress.event('runEnd', details), 'original-event');
-  assert.equal(model.state(save, 25).xp, before + 350);
-  assert.equal(events[0].xp, before + 350);
+  assert.equal(model.state(save, 25).xp, before + 85);
+  assert.equal(events[0].xp, before + 85);
   assert.equal(events[0].details, details);
   context.Progress.event('runEnd', details);
-  assert.equal(model.state(save, 25).xp, before + 350);
+  assert.equal(model.state(save, 25).xp, before + 85);
   assert.equal(model.state(save, 129).level, 1);
   model.preparePlayer(player);
   context.Progress.event('runEnd', details);
-  assert.equal(model.state(save, 25).xp, before + 700);
+  assert.equal(model.state(save, 25).xp, before + 170);
 });
 
 test('integration refuses to reward a different player or account', () => {
@@ -369,10 +565,14 @@ test('startup asset failures show a retry instead of leaving the loading screen 
 
 test('entry pages, updater manifest and offline cache use the same compatible build ID', () => {
   const { v } = require('../version.json');
+  const worker = fs.readFileSync(require.resolve('../sw.js'), 'utf8');
   assert.match(v, /^[0-9a-f]{10}$/);
   for (const page of ['../index.html', '../en/index.html']) {
     const source = fs.readFileSync(require.resolve(page), 'utf8');
     assert(source.includes('js/app.min.js?v=' + v + '"'));
+    const assets = [...source.matchAll(/(?:src|href)="((?:css\/style\.css|js\/(?:training|app\.min|data\/learnsets)\.js)\?v=[^"]+)"/g)];
+    assert.equal(assets.length, 4);
+    for (const [, asset] of assets) assert(worker.includes('./' + asset), 'Uncached game asset: ' + asset);
   }
-  assert(fs.readFileSync(require.resolve('../sw.js'), 'utf8').includes('./js/app.min.js?v=' + v));
+  assert(worker.includes('./js/app.min.js?v=' + v));
 });
