@@ -37,19 +37,20 @@ de personalidad y a la mazmorra.
 | Tecla | Acción |
 |---|---|
 | `W` `A` `S` `D` / flechas | Moverse |
-| `1` `2` `3` `4` | Elegir el movimiento activo |
-| `Q` / `E` | Ciclar movimientos |
+| `5` `6` `7` `8` | Usar esferas |
 | `Esc` / `P` | Pausa |
 
 **En móvil o tablet** (en horizontal): pon el dedo en cualquier sitio y arrastra
-para moverte (el joystick aparece donde tocas), toca un ataque de abajo para
-cambiarlo y el botón de arriba a la derecha para pausar. Se puede instalar como
+para moverte (el joystick aparece donde tocas), toca una esfera para usarla
+y el botón de arriba a la derecha para pausar. Se puede instalar como
 app ("Añadir a pantalla de inicio"). En **Ajustes** hay sonido, calidad gráfica
 (con modo automático), números de daño, menos sacudidas, FPS y la cuenta.
 
-El Pokémon ataca solo con el movimiento activo (o con todos los de un
-**vínculo**: cada legendario vencido deja fusionar movimientos para lanzarlos a
-la vez desde un solo hueco, hasta 4). Las rocas, cofres y la hierba
+El Pokémon usa **todos sus movimientos equipados automáticamente desde el
+inicio**, combinados en un solo grupo de hasta cuatro movimientos. No hace falta
+cambiar de ataque ni vencer a un legendario para vincularlos. Cada movimiento
+conserva su tiempo de recarga y sus requisitos de alcance y objetivo; los
+movimientos de apoyo también están activos. Las rocas, cofres y la hierba
 alta se rompen; las paredes y los árboles bloquean los disparos enemigos; el
 agua frena y la lava quema (también a los enemigos).
 
@@ -90,8 +91,8 @@ no guardan progreso al cerrar o recargar.
 Hay **dos niveles independientes**. El **nivel de la partida** empieza en 1,
 sube al recoger XP y da mejoras temporales de estadísticas; tanto el nivel como
 esas mejoras se reinician en cada partida. No desbloquea movimientos ni evoluciones.
-Los objetos y vínculos siguen funcionando, pero ya no se consiguen, mejoran ni
-evolucionan ataques con las cartas de nivel.
+Los objetos siguen funcionando y los movimientos ya empiezan vinculados, pero
+no se consiguen, mejoran ni evolucionan ataques con las cartas de nivel.
 
 El **nivel permanente de Pokémon** empieza en 1 y llega hasta 100. Solo gana XP
 al terminar una partida (también al salir desde la pausa), según el tiempo
@@ -109,6 +110,13 @@ la curva oficial de cada especie: antes del nivel 10, cada punto da
 `max(1, XP oficial del nivel 10 / 600)` XP; desde el 10 da
 `1 + (nivel - 10) / 3` XP. La conversión se recalcula al cruzar cada nivel
 y solo se redondea hacia abajo al guardar la XP final.
+
+Al terminar hay **dos pantallas**: primero, los resultados de la partida
+(tiempo, nivel temporal, derrotados, recompensas y resumen de daño); al pulsar
+**Continuar a XP permanente**, aparece el progreso del Pokémon con la XP ganada,
+el cambio de nivel permanente y los nuevos movimientos. Puedes volver a consultar
+los resultados sin recibir XP adicional. Las evoluciones disponibles se presentan
+desde esta segunda pantalla antes de volver al menú.
 
 La referencia de equilibrio es **nivel 10 en unos 10–15 minutos** entre partidas
 cortas y **nivel 36 en unas 2–3 horas** para un inicial típico. Por ejemplo,

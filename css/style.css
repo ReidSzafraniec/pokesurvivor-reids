@@ -1190,8 +1190,35 @@ html:lang(zh) .btn, html:lang(zh) .chip { letter-spacing: 0; }
 .training-move small { display: block; color: var(--muted); font-size: 13px; }
 .training-move.locked { opacity: .6; }
 .training-unlock { text-align: right; white-space: nowrap; }
-.training-result { grid-column: 1 / -1; padding: 12px; border: 2px solid var(--gold); border-radius: 8px; }
-.training-result p { margin: 6px 0; }
+.results-box { display: flex; flex-direction: column; overflow: hidden; }
+.results-header { flex: 0 0 auto; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,.18); }
+.results-step { display: flex; justify-content: center; align-items: center; gap: 7px; color: var(--muted); font-size: 13px; margin: 0 0 10px; }
+.results-dot { width: 7px; height: 7px; flex: 0 0 7px; border-radius: 50%; background: rgba(255,255,255,.25); }
+.results-dot.active { background: var(--gold); box-shadow: 0 0 8px rgba(255,210,63,.4); }
+#over-stats { min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 2px; }
+.results-actions { display: flex; justify-content: center; flex-wrap: wrap; flex-shrink: 0; gap: 8px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,.18); }
+.results-actions .btn { flex: 1; }
+.progress-box { width: min(520px,100%); }
+.progress-content { overflow: auto; min-height: 0; padding: 14px 2px; overscroll-behavior: contain; }
+.progress-stage { display: block; width: 160px; height: 120px; margin: 0 auto; image-rendering: pixelated; }
+.progress-reward { margin: 16px 0; padding: 14px; border: 1px solid rgba(255,210,63,.5); border-radius: 10px; background: rgba(0,0,0,.2); }
+.progress-reward > span { display: block; color: var(--muted); font-size: 12px; text-transform: uppercase; }
+.progress-reward > b { display: block; font-size: 36px; line-height: 1.2; margin: 5px 0; }
+.progress-reward p { margin: 4px 0 0; }
+.progress-box .training-summary { gap: 8px; }
+.progress-box .training-xp { height: 16px; }
+.progress-unlocks { margin: 18px 0; }
+.progress-unlocks .pill { display: inline-flex; margin: 4px; font-size: 14px; }
+.progress-note { margin: 16px 0 0; font-size: 13px; }
+@media (max-height: 520px) {
+  #scr-progress { padding: 6px 10px; }
+  .results-header { padding-bottom: 6px; }
+  .results-step { margin-bottom: 4px; }
+  .results-actions { padding-top: 6px; }
+  .progress-stage { width: 96px; height: 72px; }
+  .progress-content { padding: 6px 2px; }
+  .progress-reward { margin: 8px 0; padding: 8px; }
+}
 #scr-evolution { z-index: 80; }
 .evolution-box { width: 520px; max-width: 100%; }
 .evolution-stage { position: relative; width: 240px; height: 200px; margin: 12px auto; }

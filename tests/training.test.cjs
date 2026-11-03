@@ -394,6 +394,7 @@ function loadNativePlayer(context) {
   };
   context.Moves.instance = id => ({ ...context.Moves.BY_ID[id], lvl: 1 });
   context.Game.st = { time: 0 };
+  return runtime;
 }
 
 test('actual run levels and power-ups reset while permanent levels and move unlocks survive', () => {
@@ -479,7 +480,7 @@ test('integration equips the exact selected four without changing the temporary 
   const player = makePlayer(25);
   model.preparePlayer(player);
   assert.deepEqual(player.moves.map(move => move.id), selected);
-  assert.deepEqual(player.slots.map(slot => slot.map(move => move.id)), selected.map(id => [id]));
+  assert.deepEqual(player.slots.map(slot => slot.map(move => move.id)), [selected]);
   assert.equal(player.pokemonLevel, 40);
   assert.equal(player.level, 1);
   assert.equal(player.active, 0);
@@ -491,6 +492,75 @@ test('integration equips the exact selected four without changing the temporary 
   assert(!Object.hasOwn(save.training, 7));
   save.ptm[25] = ['thunderbolt', 'hydro-pump'];
   assert.deepEqual(context.Mons.taught(25), ['thunderbolt']);
+});
+
+for (const count of [1, 2, 3, 4]) {
+  test('native Player starts with all ' + count + ' selected moves in one active group', () => {
+    const { model, context, save } = installFixture();
+    atLevel(save, 25, 40);
+    const selected = ['thunderbolt', 'quick-attack', 'agility', 'electro-ball'].slice(0, count);
+    model.setLoadout(save, 25, selected);
+    loadNativePlayer(context);
+    const player = new context.Player({ dex: 25, hp: 100, atk: 10, spd: 100 });
+    const bonds = player.bonds;
+    for (let run = 0; run < 2; run++) {
+      model.preparePlayer(player);
+      assert.equal(player.slots.length, 1);
+      assert.deepEqual(Array.from(player.activeGroup(), move => move.id), selected);
+      assert.equal(player.activeGroup().length, player.moves.length);
+      assert(player.activeGroup().every((move, i) => move === player.moves[i]));
+      assert.equal(player.active, 0);
+      assert.equal(player.bonds, bonds);
+      player.setActive(3);
+      player.cycle(1);
+      assert.deepEqual(Array.from(player.activeGroup(), move => move.id), selected);
+      assert.deepEqual(model.state(save, 25).loadout, selected);
+    }
+  });
+}
+
+test('native combat fires every prepared attack immediately with independent cooldowns', () => {
+  const { model, context, save } = installFixture();
+  atLevel(save, 25, 40);
+  const selected = ['thunderbolt', 'quick-attack', 'electro-ball'];
+  model.setLoadout(save, 25, selected);
+  for (const [i, id] of selected.entries()) {
+    Object.assign(context.Moves.BY_ID[id], {
+      kind: 'melee', type: 'normal', radius: 100, arc: Math.PI, cd: i + 1, t: 0
+    });
+  }
+  const runtime = loadNativePlayer(context);
+  runtime.performance = { now: () => 0 };
+  const source = fs.readFileSync(require.resolve('../js/app.min.js'), 'utf8');
+  const start = source.indexOf("_0x599208['Combat']=");
+  const end = source.indexOf(",_0x599208['Spawner']=", start);
+  assert(start > 0 && end > start);
+  vm.runInContext(source.slice(start, end), runtime, { timeout: 3000 });
+  context.Coop = { active: false };
+  context.U.TYPE_COLOR = { normal: '#fff' };
+  context.U.dist = () => 0;
+  context.LIFT = 0;
+  context.FX = { slash() {} };
+  context.VFX = { forMove: () => ({}) };
+  context.EnemyMgr = { queryCircle: () => [] };
+  context.World = { propsInCircle: () => [] };
+  const player = new context.Player({ dex: 25, hp: 100, atk: 10, spd: 100 });
+  model.preparePlayer(player);
+  player.target = { x: 0, y: 0 };
+  const casts = [];
+  player.cast = move => { casts.push(move.id); };
+  context.Combat.tick(0.01, player, 0);
+  assert.deepEqual(casts, selected);
+  assert.deepEqual(Array.from(player.moves, move => move.t), [1, 2, 3]);
+  casts.length = 0;
+  context.Combat.tick(1.01, player, 1.01);
+  assert.deepEqual(casts, ['thunderbolt']);
+  assert.equal(player.moves[1].cd, 2);
+  assert.equal(player.moves[2].cd, 3);
+  casts.length = 0;
+  player.dead = true;
+  context.Combat.tick(10, player, 11.01);
+  assert.deepEqual(casts, []);
 });
 
 test('integration awards performance XP before forwarding runEnd, and only once per match', () => {

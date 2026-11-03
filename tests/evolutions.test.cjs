@@ -186,8 +186,21 @@ function bundledGacha(createModel = create) {
       Mons: {}, I18n: { add() {} }, DB: { onSync(callback) { this.notify = callback; } },
       Upgrades: { LIST: [], perks() {} }, LevelUp: {},
       Progress: { event() {}, checkAch() {} },
-      RunUI: { showOver() { context._0x599208.UI.show('scr-over'); } },
-      UI: { show(id) { this.screen = id; } },
+      RunUI: { showOver(details, done) {
+        context._0x599208.UI.show('scr-over');
+        context._0x599208.UI.$?.('over-stats').replaceChildren();
+        if (context._0x599208.UI.$) context._0x599208.UI.$('btn-again').onclick = done;
+      } },
+      UI: {
+        show(id) {
+          this.screen = id;
+          this.hideAll();
+          this.$?.(id).classList.remove('hidden');
+        },
+        hideAll() {
+          for (const id of ['scr-over', 'scr-evolution', 'scr-menu']) this.$?.(id).classList.add('hidden');
+        }
+      },
       MenuUI: { open() {} }, Flow: {}
     }
   };
@@ -335,6 +348,7 @@ function animationFixture() {
   game.Social = { room: null };
   game.Skins = { worn: () => null };
   game.UI.sprite = () => {};
+  game.UI.$ = id => document.getElementById(id);
   game.UI.isOpen = id => game.UI.screen === id;
   game.UI.toast = () => assert.fail('Unexpected evolution warning');
   atLevel(model, game.DB.save, 4, 16);
@@ -371,10 +385,149 @@ for (const [description, level, time, evolves] of [
     model.preparePlayer(player);
     game.Progress.event('runEnd', { time });
     game.RunUI.showOver();
-    assert.equal(game.UI.screen, evolves ? 'scr-evolution' : 'scr-over');
-    assert.equal(timers.size, evolves ? 1 : 0);
-    assert.equal(document.getElementById('over-stats').children.length, 1);
+    assert.equal(game.UI.screen, 'scr-over');
+    assert.equal(timers.size, 0);
+    assert.equal(document.getElementById('over-stats').children.length, 0);
+    document.getElementById('btn-again').onclick();
+    assert.equal(game.UI.screen, 'scr-progress');
+    assert.equal(timers.size, 0);
+    if (evolves) {
+      document.getElementById('progress-next').onclick();
+      assert.equal(game.UI.screen, 'scr-evolution');
+      assert.equal(timers.size, 1);
+    }
     assert(game.DB.save.owned[4]);
+  });
+}
+
+test('run results and permanent progress can be revisited without awarding XP again', () => {
+  const { model, game, document } = animationFixture();
+  atLevel(model, game.DB.save, 4, 1);
+  const player = { dex: 4, kills: 13, bosses: 0, addMove() {} };
+  game.Game.player = player;
+  model.preparePlayer(player);
+  game.Progress.event('runEnd', { time: 40 });
+  const xp = model.state(game.DB.save, 4).xp;
+  let exits = 0;
+  game.RunUI.showOver({}, () => { exits++; });
+  assert.equal(document.getElementById('btn-again').textContent, 'Continuar a XP permanente');
+  document.getElementById('btn-again').onclick();
+  assert.equal(game.UI.screen, 'scr-progress');
+  assert.equal(document.activeElement.id, 'progress-title');
+  assert.match(document.getElementById('progress-reward').textContent, /^\+\d+ XP$/);
+  assert.match(document.getElementById('progress-level').textContent, /1.*2/);
+  assert.match(document.getElementById('progress-summary').innerHTML, /value="/);
+  document.getElementById('progress-back').onclick();
+  assert.equal(game.UI.screen, 'scr-over');
+  assert.equal(document.getElementById('scr-progress').classList.contains('hidden'), true);
+  assert.equal(document.activeElement.id, 'btn-again');
+  document.getElementById('btn-again').onclick();
+  document.getElementById('progress-next').onclick();
+  assert.equal(exits, 1);
+  assert.equal(model.state(game.DB.save, 4).xp, xp);
+});
+
+test('hiding all screens also dismisses permanent results before a new match', () => {
+  const { model, game, document } = animationFixture();
+  const player = { dex: 4, kills: 0, bosses: 0, addMove() {} };
+  game.Game.player = player;
+  model.preparePlayer(player);
+  game.Progress.event('runEnd', { time: 0 });
+  game.RunUI.showOver({}, () => {});
+  document.getElementById('btn-again').onclick();
+  assert.equal(document.getElementById('scr-progress').classList.contains('hidden'), false);
+  game.UI.hideAll();
+  assert.equal(document.getElementById('scr-progress').classList.contains('hidden'), true);
+});
+
+for (const action of ['btn-again', 'progress-next', 'progress-back']) {
+  test('result navigation rejects an account change before ' + action, () => {
+    const { model, game, document, timers } = animationFixture();
+    atLevel(model, game.DB.save, 4, 15);
+    game.DB.save.training[4].xp = model.xpAt(4, 16) - 1;
+    const player = { dex: 4, kills: 0, bosses: 0, addMove() {} };
+    game.Game.player = player;
+    model.preparePlayer(player);
+    game.Progress.event('runEnd', { time: 2 });
+    game.RunUI.showOver({}, () => assert.fail('Stale result exit callback'));
+    if (action !== 'btn-again') document.getElementById('btn-again').onclick();
+    const replacement = game.DB.save = saveFor(4);
+    atLevel(model, replacement, 4, 16);
+    let warnings = 0, menus = 0;
+    game.UI.toast = () => { warnings++; };
+    game.MenuUI.open = () => { menus++; };
+    document.getElementById(action).onclick();
+    assert.equal(warnings, 1);
+    assert.equal(menus, 1);
+    assert.equal(timers.size, 0);
+    assert(replacement.owned[4]);
+    assert(!replacement.owned[5]);
+  });
+}
+
+test('newly unlocked moves appear only on permanent progress', () => {
+  const { model, game, document } = animationFixture();
+  const [move, level] = data.pokemon[4].moves.find(([, level]) => level > 1 && level < 16);
+  atLevel(model, game.DB.save, 4, level - 1);
+  game.DB.save.training[4].xp = model.xpAt(4, level) - 1;
+  const player = { dex: 4, kills: 0, bosses: 0, addMove() {} };
+  game.Game.player = player;
+  model.preparePlayer(player);
+  game.Progress.event('runEnd', { time: 2 });
+  game.RunUI.showOver({}, () => {});
+  assert.equal(document.getElementById('over-stats').children.length, 0);
+  document.getElementById('btn-again').onclick();
+  const unlocks = document.getElementById('progress-unlocks');
+  assert.equal(unlocks.classList.contains('hidden'), false);
+  assert(unlocks.innerHTML.includes(data.moves[move].names.es));
+});
+
+for (const cancelled of [false, true]) {
+  test('evolution returns to permanent progress after ' + (cancelled ? 'cancellation' : 'completion'), () => {
+    const { model, game, document, timers } = animationFixture();
+    atLevel(model, game.DB.save, 4, 15);
+    game.DB.save.training[4].xp = model.xpAt(4, 16) - 1;
+    const player = { dex: 4, kills: 0, bosses: 0, addMove() {} };
+    game.Game.player = player;
+    model.preparePlayer(player);
+    game.Progress.event('runEnd', { time: 2 });
+    let exits = 0;
+    game.RunUI.showOver({}, () => { exits++; });
+    document.getElementById('btn-again').onclick();
+    assert.equal(document.getElementById('progress-next').textContent, 'Continuar a evoluci\u00f3n');
+    document.getElementById('progress-next').onclick();
+    assert.equal(document.getElementById('scr-progress').classList.contains('hidden'), true);
+    if (cancelled) document.getElementById('evolution-stop').onclick();
+    else [...timers.values()][0]();
+    document.getElementById('evolution-continue').onclick();
+    assert.equal(game.UI.screen, 'scr-progress');
+    assert.equal(timers.size, 0);
+    assert.equal(document.getElementById('progress-name').textContent, 'Pokemon ' + (cancelled ? 4 : 5));
+    assert.equal(document.getElementById('progress-next').textContent, 'Volver al men\u00fa');
+    document.getElementById('progress-back').onclick();
+    document.getElementById('btn-again').onclick();
+    document.getElementById('progress-next').onclick();
+    assert.equal(exits, 1);
+  });
+}
+
+for (const level of [1, 100]) {
+  test('permanent results show zero XP correctly at level ' + level, () => {
+    const { model, game, document } = animationFixture();
+    atLevel(model, game.DB.save, 4, level);
+    const player = { dex: 4, kills: 0, bosses: 0, addMove() {} };
+    game.Game.player = player;
+    model.preparePlayer(player);
+    game.Progress.event('runEnd', { time: 0 });
+    game.RunUI.showOver({}, () => {});
+    document.getElementById('btn-again').onclick();
+    assert.equal(document.getElementById('progress-reward').textContent, '+0 XP');
+    assert.equal(document.getElementById('progress-level').textContent, 'Nivel permanente ' + level);
+    assert.equal(document.getElementById('progress-next').textContent, 'Volver al men\u00fa');
+    assert.equal(document.getElementById('progress-unlocks').classList.contains('hidden'), true);
+    if (level === 100) {
+      assert.match(document.getElementById('progress-summary').innerHTML, /Nivel m\u00e1ximo/);
+    }
   });
 }
 

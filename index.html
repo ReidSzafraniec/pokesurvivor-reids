@@ -86,7 +86,7 @@
 }
 </script>
 
-<link rel="stylesheet" href="css/style.css?v=evolution-1">
+<link rel="stylesheet" href="css/style.css?v=results-1">
 <script src="js/core/locales.js?v=ba2ae89740"></script>
 <script src="js/noframe.js"></script>
 </head>
@@ -504,7 +504,7 @@
       <h2 id="training-title">Entrenamiento</h2>
       <button id="training-back" class="btn small ghost">Volver</button>
     </div>
-    <p class="sub">Elige hasta cuatro movimientos antes de jugar. Las mejoras de la partida son temporales.</p>
+    <p class="sub">Elige hasta cuatro movimientos. Todos atacan juntos desde el inicio, cada uno a su ritmo.</p>
     <div class="training-head">
       <canvas id="training-stage" class="stage" width="160" height="120"></canvas>
       <div class="grow">
@@ -624,8 +624,9 @@
 <section id="scr-pause" class="scr dim hidden">
   <div class="box center pause-box">
     <h2>Pausa</h2>
-    <p class="sub kbd-hint"><kbd>WASD</kbd> moverse · <kbd>1</kbd>–<kbd>4</kbd> movimiento · <kbd>Q</kbd>/<kbd>E</kbd> ciclar · <kbd>5</kbd>–<kbd>8</kbd> esferas · <kbd>Esc</kbd> pausa</p>
-    <p class="sub touch-hint">Arrastra el dedo para moverte · toca un ataque para cambiarlo · toca una esfera para usarla</p>
+    <p class="sub">Todos tus movimientos atacan automáticamente desde el inicio.</p>
+    <p class="sub kbd-hint"><kbd>WASD</kbd> moverse · <kbd>5</kbd>–<kbd>8</kbd> esferas · <kbd>Esc</kbd> pausa</p>
+    <p class="sub touch-hint">Arrastra el dedo para moverte · todos los ataques son automáticos · toca una esfera para usarla</p>
     <p id="pause-coop" class="note hidden">Partida en grupo: el juego sigue mientras estás aquí.</p>
     <div class="row" style="justify-content:center">
       <button id="btn-resume" class="btn gold">Continuar</button>
@@ -638,15 +639,45 @@
 </section>
 
 <section id="scr-over" class="scr dim hidden">
-  <div class="box center" style="width:min(480px,100%)">
-    <h2 id="over-title">Has caído…</h2>
+  <div class="box center results-box" style="width:min(480px,100%)">
+    <header class="results-header">
+      <p class="results-step"><span class="results-dot active"></span><span class="results-dot"></span>1 / 2 · Resultados de la partida</p>
+      <h2 id="over-title" tabindex="-1">Has caído…</h2>
+    </header>
     <div id="over-stats" class="stats"></div>
-    <button id="btn-again" class="btn gold">Volver al menú</button>
+    <footer class="results-actions">
+      <button id="btn-again" class="btn gold">Volver al menú</button>
+    </footer>
+  </div>
+</section>
+
+<section id="scr-progress" class="scr dim hidden" aria-labelledby="progress-title">
+  <div class="box center results-box progress-box">
+    <header class="results-header">
+      <p class="results-step"><span class="results-dot"></span><span class="results-dot active"></span>2 / 2 · Experiencia permanente</p>
+      <h2 id="progress-title" tabindex="-1">Progreso del Pokémon</h2>
+    </header>
+    <div class="progress-content">
+      <canvas id="progress-stage" class="progress-stage" width="160" height="120" aria-hidden="true"></canvas>
+      <h3 id="progress-name"></h3>
+      <div class="progress-reward">
+        <span>XP ganada</span>
+        <b id="progress-reward" class="gold"></b>
+        <p id="progress-level"></p>
+      </div>
+      <div id="progress-summary" class="training-summary"></div>
+      <div id="progress-unlocks" class="progress-unlocks hidden"></div>
+      <p class="sub progress-note">Progreso permanente: movimientos y evoluciones.</p>
+    </div>
+    <footer class="results-actions">
+      <button id="progress-back" class="btn">Volver a resultados</button>
+      <button id="progress-next" class="btn gold">Volver al menú</button>
+    </footer>
   </div>
 </section>
 
 <script defer src="js/data/learnsets.js?v=evolution-1"></script>
-<script defer src="js/training.js?v=progression-1"></script>
+<script defer src="js/training.js?v=combined-1"></script>
 <script defer src="js/app.min.js?v=ceb86d3775"></script>
 </body>
 </html>

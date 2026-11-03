@@ -686,6 +686,7 @@
       player.active = 0;
       player.pokemonLevel = value.level;
       for (const id of value.loadout) player.addMove(id);
+      player.slots = [player.moves.slice()];
       activeRun = { player, save: game.DB.save, result: null };
     }
 
@@ -751,33 +752,69 @@
         originalShowOver.apply(this, args);
         const result = activeRun?.result;
         if (!result) return;
-        const summary = document.createElement('div');
-        summary.className = 'training-result';
-        function updateSummary(dex = result.dex) {
-          summary.innerHTML = '<span>' + text('Experiencia permanente') + '</span><b class="gold">' +
-          escape(game.DEX_BY[result.dex].name) + ' +' + number(result.gained) + ' XP</b><p>' +
-          text('Nivel permanente') + ' ' + result.before.level + ' &rarr; ' + result.after.level +
-          '</p><p>' + text('Progreso permanente: movimientos y evoluciones.') + '</p>' +
-          (dex !== result.dex ? '<p class="gold">' + text('Evoluci\u00f3n') + ': ' +
-            escape(game.DEX_BY[dex].name) + '</p>' : '') + progressHtml(dex) +
-          (result.unlocked.length ? '<p class="gold">' + text('Nuevos movimientos') + ': ' +
-            result.unlocked.map(id => escape(moveName(id))).join(', ') + '</p>' : '');
+        const run = activeRun, next = $('btn-again'), leave = next.onclick;
+        let currentDex = result.dex, evolutionDone = false;
+        function validResult() {
+          if (activeRun === run && game.DB.save === run.save && run.save.owned[currentDex] &&
+              game.Game.state === 'over') return true;
+          game.UI.toast(text('El progreso ha cambiado. Vuelve al men\u00fa.'), 4500);
+          game.MenuUI.open();
+          return false;
         }
-        updateSummary();
-        $('over-stats').prepend(summary);
-        if (result.evolution) {
-          openEvolution(result.dex, dex => {
-            updateSummary(dex);
-            game.UI.show('scr-over');
+        function showProgress() {
+          if (!validResult()) return;
+          const canEvolve = !evolutionDone && !!result.evolution &&
+            !!pendingEvolution(run.save, currentDex);
+          $('progress-name').textContent = game.DEX_BY[currentDex].name;
+          $('progress-reward').textContent = '+' + number(result.gained) + ' XP';
+          $('progress-level').textContent = text('Nivel permanente') + ' ' + result.before.level +
+            (result.after.level !== result.before.level ? ' \u2192 ' + result.after.level : '');
+          $('progress-summary').innerHTML = progressHtml(currentDex);
+          const unlocked = $('progress-unlocks');
+          unlocked.classList.toggle('hidden', !result.unlocked.length);
+          unlocked.innerHTML = '<h3>' + text('Nuevos movimientos') + '</h3>' +
+            result.unlocked.map(id => '<span class="pill">' + escape(moveName(id)) + '</span>').join('');
+          $('progress-next').textContent = text(canEvolve ? 'Continuar a evoluci\u00f3n' : 'Volver al men\u00fa');
+          $('progress-next').onclick = () => {
+            if (!validResult()) return;
+            if (canEvolve) {
+              openEvolution(currentDex, dex => {
+                currentDex = dex;
+                evolutionDone = true;
+                showProgress();
+              });
+            } else {
+              leave.call(next);
+            }
+          };
+          game.UI.show('scr-progress');
+          game.UI.sprite($('progress-stage'), currentDex, {
+            scale: 3, hero: true, shadow: false,
+            shiny: !!run.save.partnerShiny && !!run.save.shiny?.[currentDex]
           });
+          $('progress-title').focus();
         }
+        next.textContent = text('Continuar a XP permanente');
+        next.onclick = showProgress;
+        $('progress-back').onclick = () => {
+          if (!validResult()) return;
+          game.UI.show('scr-over');
+          next.focus();
+        };
+        $('over-title').focus();
       };
 
       const originalShow = game.UI.show;
       game.UI.show = function (id, ...args) {
         if (id !== 'scr-evolution') dismissEvolution();
+        if (id !== 'scr-progress') $('scr-progress').classList.add('hidden');
         originalShow.call(this, id, ...args);
         if (id === 'scr-menu') renderMenu();
+      };
+      const originalHideAll = game.UI.hideAll;
+      game.UI.hideAll = function (...args) {
+        $('scr-progress').classList.add('hidden');
+        return originalHideAll.apply(this, args);
       };
       const originalInit = game.MenuUI.init;
       const originalPlay = game.Flow.play;
@@ -822,6 +859,14 @@
         'Elegir movimientos': 'Choose moves',
         'Nivel permanente': 'Permanent level',
         'Experiencia permanente': 'Permanent XP',
+        'Resultados de la partida': 'Run results',
+        'Progreso del Pok\u00e9mon': 'Pok\u00e9mon progress',
+        'Continuar a XP permanente': 'Continue to permanent XP',
+        'Continuar a evoluci\u00f3n': 'Continue to evolution',
+        'Volver a resultados': 'Back to results',
+        'Volver al men\u00fa': 'Back to menu',
+        'XP ganada': 'XP earned',
+        'El progreso ha cambiado. Vuelve al men\u00fa.': 'Progress has changed. Return to the menu.',
         'Nivel m\u00e1ximo': 'Maximum level',
         'Datos de movimientos': 'Move data',
         'Movimiento': 'Move',
@@ -855,8 +900,12 @@
         'Empezar partida': 'Start match',
         'Ganas XP permanente al terminar, seg\u00fan el tiempo sobrevivido y los Pok\u00e9mon derrotados, con un extra por jefes. Los primeros 10 niveles son m\u00e1s r\u00e1pidos.':
           'Earn permanent XP when the run ends, based on survival time and defeated Pokemon, plus a boss bonus. The first 10 levels are quicker.',
-        'Elige hasta cuatro movimientos antes de jugar. Las mejoras de la partida son temporales.':
-          'Choose up to four moves before playing. In-match upgrades are temporary.',
+        'Elige hasta cuatro movimientos. Todos atacan juntos desde el inicio, cada uno a su ritmo.':
+          'Choose up to four moves. All attack together from the start, each on its own cooldown.',
+        'Todos tus movimientos atacan autom\u00e1ticamente desde el inicio.':
+          'All your moves attack automatically from the start.',
+        'Arrastra el dedo para moverte \u00b7 todos los ataques son autom\u00e1ticos \u00b7 toca una esfera para usarla':
+          'Drag to move \u00b7 all attacks are automatic \u00b7 tap an orb to use it',
         'Se muestran los movimientos implementados, con los niveles y especies de los juegos oficiales. Las MT aprendidas tambi\u00e9n se pueden equipar.':
           'Only implemented moves are shown, with official species eligibility and learn levels. Learned TMs can also be equipped.',
         'Modo invitado: los niveles y movimientos se pierden al salir. Crea una cuenta para guardarlos.':
