@@ -1,33 +1,87 @@
 (function () {
   'use strict';
 
-  const WIDTH = 1152, HEIGHT = 896, RADIUS = 10, SPEED = 170;
-  const SPAWN = Object.freeze({ x: 528, y: 548 });
+  const WIDTH = 1280, HEIGHT = 1024, RADIUS = 10, SPEED = 170;
+  const SPAWN = Object.freeze({ x: 640, y: 568 });
   const BUILDINGS = Object.freeze([
-    ['play', 'Expediciones', 88, 112, '#bd6651', 'ball'],
-    ['training', 'Entrenamiento', 344, 112, '#6887b5', 'book'],
-    ['dex', 'Pok\u00e9mon', 600, 112, '#779b68', 'book'],
-    ['upgrades', 'Mejoras', 856, 112, '#ad8953', 'up'],
-    ['friends', 'Amigos', 88, 368, '#8e79b1', 'friends'],
-    ['rank', 'Ranking', 600, 368, '#b49751', 'trophy'],
-    ['settings', 'Ajustes', 856, 368, '#6d9199', 'settings'],
-    ['shop', 'Tienda Kecleon', 88, 656, '#7b9b57', 'shop'],
-    ['bag', 'Mochila', 344, 656, '#af8058', 'bag'],
-    ['gacha', 'Gacha', 600, 656, '#9a719d', 'ball4'],
-    ['goals', 'Misiones', 856, 656, '#648d99', 'medal3']
-  ].map(([id, label, x, y, color, icon]) => Object.freeze({
-    id, label, x, y, color, icon, w: 160, h: 128,
-    door: Object.freeze({ x: x + 80, y: y + 150 })
+    ['training', 'Entrenamiento', 192, 176, 208, 160, '#ae9b57', 'gym'],
+    ['dex', 'Pok\u00e9mon', 112, 400, 192, 160, '#d75d54', 'center'],
+    ['settings', 'Ajustes', 1040, 352, 128, 112, '#668ba0', 'flat'],
+    ['shop', 'Tienda', 176, 704, 176, 144, '#528bbe', 'shop'],
+    ['bag', 'Mochila', 416, 736, 128, 112, '#ad7951', 'gable'],
+    ['gacha', 'Gacha', 768, 720, 160, 144, '#9274b5', 'dome'],
+    ['goals', 'Misiones', 816, 176, 176, 144, '#497e9b', 'hall']
+  ].map(([id, label, x, y, w, h, color, style]) => {
+    const roofHeight = style === 'flat' ? 32 : Math.min(64, h - 72);
+    return Object.freeze({
+      id, label, x, y, w, h, color, style, roofHeight, kind: 'building',
+      footprint: Object.freeze({ x: x + 4, y: y + roofHeight + 4, w: w - 8, h: h - roofHeight - 4 }),
+      approach: Object.freeze({ x: x + w / 2 - 24, y: y + h + RADIUS, w: 48, h: 40 }),
+      door: Object.freeze({ x: x + w / 2, y: y + h + 24 })
+    });
+  }));
+  const DESTINATIONS = Object.freeze([
+    ...BUILDINGS,
+    Object.freeze({
+      id: 'rank', label: 'Ranking', kind: 'board', x: 480, y: 376, w: 112, h: 80,
+      approach: Object.freeze({ x: 512, y: 466, w: 48, h: 40 }),
+      door: Object.freeze({ x: 536, y: 480 })
+    }),
+    Object.freeze({
+      id: 'friends', label: 'Amigos', kind: 'phone', x: 712, y: 392, w: 48, h: 64,
+      approach: Object.freeze({ x: 712, y: 466, w: 48, h: 40 }),
+      door: Object.freeze({ x: 736, y: 480 })
+    }),
+    Object.freeze({
+      id: 'play', label: 'Expediciones', kind: 'route', x: 600, y: 48, w: 80, h: 64,
+      approach: Object.freeze({ x: 610, y: 42, w: 60, h: 134 }),
+      door: Object.freeze({ x: 640, y: 128 })
+    })
+  ]);
+  const PLAZA = Object.freeze({ x: 480, y: 464, w: 288, h: 192 });
+  const POND = Object.freeze([
+    [896, 480, 112, 16], [880, 496, 160, 16], [864, 512, 192, 16],
+    [848, 528, 224, 32], [864, 560, 208, 32], [880, 592, 176, 16],
+    [896, 608, 144, 16], [912, 624, 112, 16]
+  ].map(([x, y, w, h]) => Object.freeze({ x, y, w, h })));
+  const PATHS = Object.freeze([
+    { x: 600, y: 0, w: 80, h: 928 },
+    { x: 264, y: 344, w: 672, h: 56 },
+    { x: 872, y: 320, w: 64, h: 80 },
+    { x: 200, y: 568, w: 400, h: 56 },
+    { x: 168, y: 560, w: 64, h: 64 },
+    { x: 680, y: 648, w: 432, h: 48 },
+    { x: 1080, y: 464, w: 48, h: 232 },
+    { x: 232, y: 872, w: 896, h: 56 },
+    ...BUILDINGS.map(b => ({ x: b.door.x - 24, y: b.y + b.h, w: 48, h: b.y < 700 ? 48 : 80 }))
+  ].map(Object.freeze));
+  const TREES = Object.freeze([
+    [456, 240], [760, 224], [1120, 248], [1128, 296], [360, 480],
+    [400, 664], [816, 440], [1136, 656], [128, 672], [1056, 800], [1104, 800], [576, 800]
+  ].map(([x, y]) => Object.freeze({ x, y })));
+  const PROPS = Object.freeze([
+    ['bench', 424, 536], ['bench', 704, 624],
+    ['lamp', 568, 320], ['lamp', 704, 320], ['lamp', 448, 632],
+    ['lamp', 792, 632], ['lamp', 368, 856], ['lamp', 968, 856]
+  ].map(([kind, x, y]) => Object.freeze({
+    kind, x, y,
+    footprint: Object.freeze(kind === 'bench' ? { x, y, w: 56, h: 12 } : { x: x - 4, y: y + 6, w: 16, h: 6 })
   })));
   const SOLIDS = Object.freeze([
-    ...BUILDINGS.map(b => Object.freeze({ x: b.x, y: b.y, w: b.w, h: b.h })),
-    Object.freeze({ x: 368, y: 368, w: 160, h: 96 })
+    ...BUILDINGS.map(b => b.footprint),
+    ...POND,
+    Object.freeze({ x: 484, y: 420, w: 104, h: 36 }),
+    Object.freeze({ x: 716, y: 420, w: 40, h: 36 }),
+    ...TREES.map(t => Object.freeze({ x: t.x - 8, y: t.y, w: 16, h: 16 })),
+    ...PROPS.map(p => p.footprint),
+    Object.freeze({ x: 708, y: 160, w: 8, h: 8 })
   ]);
   const clamp = (n, low, high) => Math.max(low, Math.min(high, n));
 
   function walkable(x, y) {
-    return x >= 32 + RADIUS && y >= 32 + RADIUS &&
-      x <= WIDTH - 32 - RADIUS && y <= HEIGHT - 32 - RADIUS &&
+    return x >= 96 + RADIUS && y >= 32 + RADIUS &&
+      x <= WIDTH - 96 - RADIUS && y <= HEIGHT - 64 - RADIUS &&
+      (y >= 144 + RADIUS || (x >= 600 + RADIUS && x <= 680 - RADIUS)) &&
       !SOLIDS.some(r => x + RADIUS > r.x && x - RADIUS < r.x + r.w &&
         y + RADIUS > r.y && y - RADIUS < r.y + r.h);
   }
@@ -50,7 +104,8 @@
   }
 
   function nearby(position) {
-    return BUILDINGS.find(b => Math.hypot(position.x - b.door.x, position.y - b.door.y) <= 46) || null;
+    return DESTINATIONS.find(({ approach: a }) => position.x >= a.x && position.x <= a.x + a.w &&
+      position.y >= a.y && position.y <= a.y + a.h) || null;
   }
 
   function direction(x, y) {
@@ -72,7 +127,7 @@
     const text = value => game.T(value);
     let position = { ...SPAWN }, account, avatar, appearance = '', shortcut = false;
     let frame = null, last = null, focused = true, initialized = false, currentDoor;
-    let scenery, scale = 1, viewWidth = 0, viewHeight = 0;
+    let scenery, layers = [], scale = 1, viewWidth = 0, viewHeight = 0;
 
     game.I18n.add({
       'Villa Compa\u00f1era': 'Partner Village',
@@ -80,11 +135,15 @@
       'Expediciones': 'Expeditions',
       'Volver al pueblo': 'Return to town',
       'Men\u00fa': 'Menu',
-      'Camina hasta una puerta para abrir su men\u00fa.': 'Walk up to a door to open its menu.',
-      'WASD / flechas: moverse \u00b7 E / Espacio: entrar \u00b7 M / Esc: men\u00fa':
-        'WASD / arrows: move \u00b7 E / Space: enter \u00b7 M / Esc: menu',
+      'WASD / flechas: moverse \u00b7 E / Espacio: interactuar \u00b7 M / Esc: men\u00fa':
+        'WASD / arrows: move \u00b7 E / Space: interact \u00b7 M / Esc: menu',
       'Entrar': 'Enter',
-      'Ac\u00e9rcate a una puerta': 'Approach a door',
+      'Entrenamiento': 'Training',
+      'Tienda': 'Shop',
+      'Llamar': 'Call',
+      'Leer tabla': 'Read board',
+      'Salir de expedici\u00f3n': 'Head out',
+      'Ruta de expediciones': 'Expedition route',
       'Mover arriba': 'Move up',
       'Mover abajo': 'Move down',
       'Mover a la izquierda': 'Move left',
@@ -152,115 +211,387 @@
       context.fillRect(x, y, w, h);
     }
 
+    function blob(context, color, x, y, rx, ry) {
+      for (let dy = -ry; dy < ry; dy += 4) {
+        const span = Math.floor(rx * Math.sqrt(Math.max(0, 1 - ((dy + 2) / ry) ** 2)) / 4) * 4;
+        if (span) rect(context, color, x - span, y + dy, span * 2, 4);
+      }
+    }
+
     function tree(context, x, y) {
-      rect(context, '#796140', x - 5, y + 6, 10, 22);
-      rect(context, '#254f49', x - 22, y - 10, 44, 30);
-      rect(context, '#32634b', x - 26, y - 18, 52, 26);
-      rect(context, '#438357', x - 20, y - 32, 40, 26);
-      rect(context, '#5c9960', x - 12, y - 35, 20, 12);
+      blob(context, '#244f4938', x + 6, y + 12, 38, 12);
+      rect(context, '#534c39', x - 8, y - 12, 16, 28);
+      rect(context, '#94794b', x - 4, y - 12, 6, 26);
+      rect(context, '#bd9a5d', x - 4, y + 4, 2, 8);
+      for (const [dx, dy, rx, ry] of [[0, -22, 38, 28], [-20, -32, 22, 24],
+        [20, -32, 22, 24], [0, -50, 30, 30]]) {
+        blob(context, '#204e43', x + dx, y + dy + 6, rx, ry);
+        blob(context, '#2f7252', x + dx, y + dy, rx - 2, ry - 2);
+        blob(context, '#419461', x + dx - 4, y + dy - 8, rx - 6, ry - 10);
+        blob(context, '#65b477', x + dx - 8, y + dy - 14, rx - 12, ry - 18);
+      }
+      for (let i = 0; i < 32; i++) {
+        const dx = (i * 19 % 60) - 30, dy = (i * 29 % 52) - 60;
+        if ((dx / 34) ** 2 + ((dy + 36) / 40) ** 2 > 1) continue;
+        const color = i % 3 ? '#76bd78' : '#245e48';
+        rect(context, color, x + dx, y + dy, 4, 2);
+        rect(context, color, x + dx + 2, y + dy - 2, 2, 2);
+      }
+    }
+
+    function windowPane(context, x, y, w = 28, h = 24) {
+      rect(context, '#6e6553', x - 4, y - 4, w + 8, h + 8);
+      rect(context, '#f5e8be', x - 2, y - 2, w + 4, h + 4);
+      rect(context, '#477a8b', x, y, w, h);
+      rect(context, '#82c7d0', x + 2, y + 2, w - 4, h - 6);
+      rect(context, '#bde7dc', x + 2, y + 2, w - 4, 6);
+      rect(context, '#f5e8be', x + w / 2 - 1, y, 2, h);
+      rect(context, '#f5e8be', x, y + h / 2, w, 2);
+      rect(context, '#b09e74', x - 6, y + h + 4, w + 12, 4);
+    }
+
+    function sign(context, label, x, y, w) {
+      rect(context, '#413e36', x - w / 2 - 2, y - 2, w + 4, 24);
+      rect(context, '#f0d99c', x - w / 2, y, w, 20);
+      rect(context, '#b39b67', x - w / 2, y + 18, w, 2);
+      context.fillStyle = '#354e4a';
+      context.font = 'bold 14px Pixelify, sans-serif';
+      context.textAlign = 'center';
+      context.fillText(text(label), x, y + 14, w - 8);
     }
 
     function building(context, b) {
+      if (['gym', 'center', 'shop'].includes(b.style)) return landmark(context, b);
+      const { x, y, w, h, roofHeight } = b, floor = y + h, center = x + w / 2;
+      rect(context, '#254f4938', x + 10, floor - 8, w + 10, 20);
+      rect(context, '#746d5c', x, y + roofHeight, w, h - roofHeight);
+      rect(context, '#eee4bc', x + 4, y + roofHeight + 4, w - 8, h - roofHeight - 12);
+      rect(context, '#d8cca3', x + w - 24, y + roofHeight + 4, 20, h - roofHeight - 12);
+      for (let by = floor - 22; by < floor - 4; by += 8) {
+        for (let bx = x + 4; bx < x + w - 4; bx += 16) {
+          rect(context, '#b2a581', bx + 1, by, 14, 6);
+        }
+      }
+      for (const bx of [x + 8, x + w - 16]) {
+        rect(context, '#b0a381', bx, y + roofHeight + 8, 6, h - roofHeight - 32);
+      }
+      for (let row = 0; row < roofHeight; row += 4) {
+        const inset = b.style === 'flat' ? 0 : Math.max(0, 28 - row / 2);
+        rect(context, '#4d5350', x - 10 + inset, y + row + 6, w + 20 - inset * 2, 4);
+        rect(context, b.color, x - 10 + inset, y + row, w + 20 - inset * 2, 4);
+        if (row % 12 === 8) {
+          rect(context, '#183a4938', x - 8 + inset, y + row, w + 16 - inset * 2, 2);
+          for (let tx = x + inset + (row % 24 ? 0 : 10); tx < x + w - inset; tx += 20) {
+            rect(context, '#ffffff24', tx, y + row - 6, 2, 6);
+          }
+        }
+      }
+      rect(context, '#ffffff38', x + 22, y, w - 44, 4);
+      rect(context, '#e2d5a5', x - 8, y + roofHeight + 4, w + 16, 4);
+      if (b.style !== 'flat' && b.style !== 'dome') {
+        rect(context, '#666b62', x + w - 40, y - 12, 20, 32);
+        rect(context, '#d2c8a9', x + w - 38, y - 14, 14, 30);
+        rect(context, '#817c6c', x + w - 40, y - 16, 20, 6);
+        rect(context, '#524f48', x + w - 36, y - 14, 12, 2);
+      }
+      if (b.style === 'gable' || b.style === 'hall') {
+        const gable = b.style === 'hall' ? 32 : 24;
+        for (let row = 0; row < gable; row += 4) {
+          rect(context, '#ece5bf', center - row - 4, y + 8 + row, row * 2 + 8, 4);
+          rect(context, '#d9e3ca', center - row, y + 8 + row, row * 2, 2);
+        }
+        rect(context, '#eae2bd', center - gable, y + 8 + gable, gable * 2, 20);
+        windowPane(context, center - 8, y + 28, 16, 18);
+      }
+      if (b.style === 'dome') {
+        blob(context, '#4c4a67', center, y + 12, 36, 28);
+        blob(context, '#b79bd1', center - 2, y + 6, 30, 24);
+        blob(context, '#ddc6eb', center - 8, y, 18, 14);
+        rect(context, '#f7d888', center - 4, y - 28, 8, 12);
+      }
+      windowPane(context, x + 20, floor - 44, w < 150 ? 20 : 28);
+      windowPane(context, x + w - (w < 150 ? 40 : 48), floor - 44, w < 150 ? 20 : 28);
+      rect(context, '#726046', center - 20, floor - 42, 40, 40);
+      rect(context, '#3f4e4b', center - 16, floor - 38, 32, 36);
+      rect(context, '#79a7aa', center - 12, floor - 34, 24, 16);
+      rect(context, '#b8ddd0', center - 10, floor - 32, 20, 4);
+      rect(context, '#d5b674', center + 8, floor - 14, 4, 4);
+      rect(context, '#847a61', center - 28, floor, 56, 6);
+      rect(context, '#e4d7ae', center - 28, floor, 56, 2);
+      if (b.style === 'market') {
+        for (let i = 0; i < 8; i++) {
+          rect(context, i % 2 ? '#efe7c0' : '#78a65d', x + 8 + i * (w - 16) / 8,
+            floor - 78, (w - 16) / 8, 20);
+        }
+        rect(context, '#526d43', x + 6, floor - 60, w - 12, 4);
+      }
+      sign(context, b.label, center, y + roofHeight + 8, Math.min(w - 12, 156));
+    }
+
+    function landmark(context, b) {
+      const { x, y, w, h, roofHeight, style } = b;
+      const floor = y + h, center = x + w / 2, roofBottom = y + roofHeight;
+      const edge = style === 'center' ? '#773f47' : '#455b79';
+      rect(context, '#254f4938', x + 8, floor - 4, w + 12, 16);
+      rect(context, '#617186', x, roofBottom - 4, w, h - roofHeight + 4);
+      rect(context, '#e5edf2', x + 4, roofBottom, w - 8, h - roofHeight - 4);
+      rect(context, '#bdcddb', x + w - 20, roofBottom, 16, h - roofHeight - 4);
+      for (let py = roofBottom + 16; py < floor - 4; py += 16) {
+        rect(context, '#a7b9ca', x + 4, py, w - 8, 2);
+        rect(context, '#f3f5ed', x + 4, py + 2, w - 24, 2);
+      }
+      rect(context, '#f6f7ed', x + 6, roofBottom, 6, h - roofHeight - 8);
+      for (let row = 0; row < roofHeight; row += 4) {
+        const inset = Math.max(0, 20 - row);
+        rect(context, edge, x - 8 + inset, y + row + 4, w + 16 - inset * 2, 4);
+        rect(context, b.color, x - 6 + inset, y + row, w + 12 - inset * 2, 4);
+        if (style === 'gym') {
+          rect(context, '#d3bf77', x - 4 + inset, y + row, w + 8 - inset * 2, 2);
+          for (let px = x + 8 + inset; px < x + w - inset; px += 12) {
+            rect(context, '#8e814c', px, y + row, 2, 4);
+          }
+        } else if (style === 'shop') {
+          for (let px = x + 8 + inset; px < x + w - inset - 8; px += 16) {
+            rect(context, '#69bbdc', px, y + row, 10, 4);
+            rect(context, '#3f699f', px + 10, y + row, 2, 4);
+          }
+        } else if (row % 12 === 8) {
+          rect(context, '#ee9b7c', x - 2 + inset, y + row, w + 4 - inset * 2, 2);
+          for (let px = x + 8 + inset; px < x + w - inset; px += 16) {
+            rect(context, '#b84b4c', px, y + row - 6, 2, 6);
+          }
+        }
+      }
+      rect(context, edge, x - 8, roofBottom, w + 16, 8);
+      rect(context, '#eff2e5', x - 4, roofBottom + 8, w + 8, 4);
+      rect(context, '#ffffff38', x + 16, y + 2, w - 32, 4);
+      const windowWidth = Math.floor((w - 96) / 2);
+      for (const wx of [x + 16, x + w - windowWidth - 16]) {
+        windowPane(context, wx, roofBottom + 20, windowWidth, 20);
+      }
+      rect(context, '#526276', center - 26, floor - 56, 52, 56);
+      rect(context, '#9baec0', center - 22, floor - 52, 44, 52);
+      rect(context, '#4178a3', center - 18, floor - 48, 36, 48);
+      rect(context, '#79b9da', center - 14, floor - 44, 28, 38);
+      rect(context, '#addbea', center - 12, floor - 42, 24, 6);
+      rect(context, '#e1eaf0', center - 1, floor - 44, 2, 40);
+      rect(context, '#d2dae0', center - 32, floor, 64, 6);
+      rect(context, '#f4f3df', center - 32, floor, 64, 2);
+      const crestY = floor - 76;
+      rect(context, '#708499', center - 28, crestY, 56, 22);
+      blob(context, '#708499', center, crestY, 28, 24);
+      rect(context, '#e5edf2', center - 24, crestY, 48, 18);
+      blob(context, '#e5edf2', center, crestY, 24, 20);
+      const crestColor = style === 'center' ? '#d34f4d' : style === 'gym' ? '#b79e51' : '#578bc3';
+      blob(context, crestColor, center, crestY, 18, 16);
+      rect(context, '#edf4ee', center - 18, crestY - 2, 36, 4);
+      blob(context, '#edf4ee', center, crestY, 8, 8);
+      rect(context, crestColor, center - 4, crestY - 4, 8, 8);
+      sign(context, b.label,
+        style === 'shop' ? x + w - 38 : x + 38, floor - 26, 60);
+    }
+
+    function payphone(context, b) {
       const { x, y, w, h } = b;
-      rect(context, '#436c51', x + 8, y + h - 4, w + 4, 16);
-      rect(context, '#695a50', x, y + 44, w, h - 44);
-      rect(context, '#efdfb2', x + 4, y + 46, w - 8, h - 50);
-      rect(context, '#d7c391', x + 4, y + h - 18, w - 8, 14);
-      rect(context, '#f7ebc7', x + 8, y + 50, 8, h - 70);
-      rect(context, '#453f48', x - 8, y + 18, w + 16, 40);
-      rect(context, b.color, x - 8, y + 12, w + 16, 38);
-      rect(context, b.color, x + 4, y, w - 8, 16);
-      rect(context, '#ffffff28', x + 8, y + 4, w - 16, 6);
-      for (let row = y + 20; row < y + 48; row += 10) {
-        rect(context, '#0000001c', x - 4, row, w + 8, 2);
+      rect(context, '#254f4938', x + 4, y + h - 4, w + 8, 12);
+      rect(context, '#879990', x, y + h - 4, w, 8);
+      rect(context, '#d1d7bc', x + 2, y + h - 4, w - 4, 2);
+      rect(context, '#516b70', x + 4, y + 8, w - 8, h - 12);
+      rect(context, '#93aca7', x + 8, y + 10, w - 16, h - 16);
+      rect(context, '#b9dbd24d', x + 4, y + 12, 10, h - 20);
+      rect(context, '#b9dbd280', x + w - 12, y + 12, 8, h - 20);
+      rect(context, '#daf0df', x + 4, y + 12, 2, h - 20);
+      rect(context, '#3a5059', x + 16, y + 22, 20, 32);
+      rect(context, '#c2cebc', x + 20, y + 24, 14, 28);
+      rect(context, '#346d79', x + 22, y + 26, 10, 8);
+      rect(context, '#90d8cc', x + 24, y + 28, 6, 4);
+      for (let row = 0; row < 3; row++) {
+        for (let column = 0; column < 3; column++) {
+          rect(context, '#425c65', x + 22 + column * 4, y + 38 + row * 4, 2, 2);
+        }
       }
-      for (const wx of [x + 22, x + w - 48]) {
-        rect(context, '#735e51', wx - 3, y + 72, 32, 30);
-        rect(context, '#a3d8da', wx, y + 75, 26, 22);
-        rect(context, '#e7f2ce', wx + 11, y + 75, 3, 22);
-        rect(context, '#e7f2ce', wx, y + 85, 26, 3);
+      rect(context, '#243f4b', x + 12, y + 24, 6, 20);
+      rect(context, '#243f4b', x + 12, y + 22, 10, 6);
+      rect(context, '#243f4b', x + 12, y + 40, 10, 6);
+      rect(context, '#b8c7bd', x, y + 6, 4, h - 6);
+      rect(context, '#d7e3cf', x, y + 6, 2, h - 6);
+      rect(context, '#4d6971', x + w - 4, y + 6, 4, h - 6);
+      rect(context, '#8fa9a7', x + w - 4, y + 6, 2, h - 6);
+      rect(context, '#87464b', x - 4, y, w + 8, 12);
+      rect(context, '#cc514c', x - 2, y - 4, w + 4, 12);
+      rect(context, '#e2856b', x + 2, y - 4, w - 4, 2);
+      rect(context, '#fff3d4', x + 18, y - 2, 12, 4);
+      rect(context, '#fff3d4', x + 16, y, 4, 6);
+      rect(context, '#fff3d4', x + 28, y, 4, 6);
+      sign(context, b.label, x + w / 2, y - 24, 64);
+    }
+
+    function board(context, b) {
+      const { x, y, w, h } = b;
+      for (const px of [x + 8, x + w - 16]) {
+        rect(context, '#514f3b', px, y + 20, 8, h - 20);
+        rect(context, '#b18b52', px, y + 20, 4, h - 22);
+        rect(context, '#d7c18a', px - 4, y + h - 4, 16, 4);
       }
-      rect(context, '#705140', x + 62, y + h - 36, 36, 36);
-      rect(context, '#433f3c', x + 67, y + h - 31, 26, 31);
-      rect(context, '#d2ad63', x + 85, y + h - 19, 3, 3);
-      rect(context, '#e0cf9f', x + 54, y + h, 52, 7);
-      rect(context, '#203e40', x + 8, y + 52, w - 16, 21);
-      context.fillStyle = '#fff6db';
-      context.font = "bold 14px Pixelify, sans-serif";
-      context.textAlign = 'center';
-      context.fillText(text(b.label), x + w / 2, y + 67, w - 22);
+      rect(context, '#514535', x, y + 12, w, 52);
+      rect(context, '#a47a46', x + 4, y + 16, w - 8, 44);
+      rect(context, '#c19860', x + 8, y + 20, w - 16, 36);
+      for (const [dx, dy] of [[16, 28], [44, 32], [76, 26]]) {
+        rect(context, '#6b593e', x + dx + 2, y + dy + 2, 18, 22);
+        rect(context, '#f7edc9', x + dx, y + dy, 18, 22);
+        rect(context, '#b4ab86', x + dx + 4, y + dy + 6, 10, 2);
+        rect(context, '#b4ab86', x + dx + 4, y + dy + 12, 8, 2);
+        rect(context, '#a35b4c', x + dx + 8, y + dy, 3, 3);
+      }
+      rect(context, '#465c4b', x - 6, y + 4, w + 12, 8);
+      rect(context, '#78a17a', x - 2, y, w + 4, 6);
+      sign(context, b.label, x + w / 2, y - 20, 88);
+    }
+
+    function prop(context, p) {
+      const { x, y } = p;
+      if (p.kind === 'bench') {
+        rect(context, '#254f4938', x, y + 8, 60, 8);
+        for (const dx of [4, 46]) rect(context, '#4d5a50', x + dx, y - 12, 6, 24);
+        for (const dy of [-16, -8, 2]) {
+          rect(context, '#7e6247', x, y + dy, 56, 6);
+          rect(context, '#c49b62', x, y + dy, 56, 2);
+        }
+      } else {
+        rect(context, '#71796b', x - 4, y + 6, 16, 6);
+        rect(context, '#434f4d', x, y - 46, 8, 54);
+        rect(context, '#b5bc9b', x + 2, y - 44, 2, 50);
+        rect(context, '#3e5350', x - 6, y - 60, 20, 16);
+        rect(context, '#f1dda0', x - 2, y - 58, 12, 12);
+        rect(context, '#fff0bd', x, y - 56, 4, 8);
+        rect(context, '#617a69', x - 8, y - 64, 24, 4);
+        rect(context, '#617a69', x - 4, y - 68, 16, 4);
+      }
+    }
+
+    function cacheLayer(bounds, depth, paint) {
+      const image = doc.createElement('canvas');
+      image.width = bounds.w;
+      image.height = bounds.h;
+      const brush = image.getContext('2d');
+      brush.translate(-bounds.x, -bounds.y);
+      paint(brush);
+      layers.push({ ...bounds, depth, image });
     }
 
     function makeScenery() {
       scenery = doc.createElement('canvas');
       scenery.width = WIDTH;
       scenery.height = HEIGHT;
+      layers = [];
       const brush = scenery.getContext('2d');
-      rect(brush, '#7dab69', 0, 0, WIDTH, HEIGHT);
-      for (let y = 0; y < HEIGHT; y += 16) {
-        for (let x = 0; x < WIDTH; x += 16) {
-          const n = (x * 13 + y * 7) % 29;
-          if (n < 5) rect(brush, '#91b975', x + 4, y + 6, 3, 2);
-          if (n === 7) rect(brush, '#6c9d5d', x + 10, y + 12, 4, 3);
+      rect(brush, '#8cbd78', 0, 0, WIDTH, HEIGHT);
+      for (let y = 0; y < HEIGHT; y += 8) {
+        for (let x = 0; x < WIDTH; x += 8) {
+          const n = (x * 31 + y * 17 + (x * y) % 127) % 101;
+          if (n < 22) rect(brush, n < 8 ? '#a0ca83' : '#7fb372', x, y, 4, 2);
+          if (n === 36) {
+            rect(brush, '#5c9e64', x, y, 2, 4);
+            rect(brush, '#6caa68', x + 2, y + 2, 2, 4);
+          }
         }
       }
-      for (const y of [280, 536, 824]) {
-        rect(brush, '#c7b27c', 48, y - 8, WIDTH - 96, 48);
-        rect(brush, '#dcc792', 48, y - 4, WIDTH - 96, 40);
-        for (let x = 64; x < WIDTH - 64; x += 32) rect(brush, '#bca873', x, y + 10, 12, 2);
-      }
-      for (const x of [288, 544, 800, 1056]) {
-        rect(brush, '#c7b27c', x - 8, 64, 48, HEIGHT - 96);
-        rect(brush, '#dcc792', x - 4, 64, 40, HEIGHT - 96);
-      }
-      rect(brush, '#8b927c', 344, 496, 192, 112);
-      rect(brush, '#a2ad96', 352, 504, 176, 96);
-      for (let row = 0; row < 6; row++) {
-        for (let x = 352 - (row % 2) * 16; x < 528; x += 32) {
-          const left = Math.max(x, 352), right = Math.min(x + 32, 528);
-          rect(brush, row % 2 ? '#c6cbb0' : '#d5d4ba', left + 1, 505 + row * 16, right - left - 2, 14);
+      for (const p of PATHS) rect(brush, '#adab72', p.x - 4, p.y - 4, p.w + 8, p.h + 8);
+      for (const p of PATHS) rect(brush, '#ebd59b', p.x, p.y, p.w, p.h);
+      for (let y = 8; y < HEIGHT; y += 8) {
+        for (let x = 8; x < WIDTH; x += 8) {
+          if (!PATHS.some(p => x > p.x + 2 && x < p.x + p.w - 6 && y > p.y + 2 && y < p.y + p.h - 6)) continue;
+          const n = (x * 7 + y * 13 + x * y % 97) % 59;
+          if (n < 9) rect(brush, n < 4 ? '#d2bb82' : '#f5e2ac', x, y, n < 4 ? 2 : 4, 2);
         }
       }
-      rect(brush, '#dcc792', 344, 532, 8, 40);
-      rect(brush, '#dcc792', 528, 532, 16, 40);
+      const { x, y, w, h } = PLAZA;
+      rect(brush, '#939d7f', x, y, w, h);
+      rect(brush, '#b8bca0', x + 4, y + 4, w - 8, h - 8);
+      for (let row = 0; row < (h - 16) / 16; row++) {
+        for (let px = x + 8 - (row % 2) * 16; px < x + w - 8; px += 32) {
+          const left = Math.max(px, x + 8), right = Math.min(px + 32, x + w - 8);
+          rect(brush, row % 2 ? '#d6d4b8' : '#e1ddc2', left + 1, y + 9 + row * 16, right - left - 2, 14);
+        }
+      }
+      for (const p of POND) rect(brush, '#b9b486', p.x - 12, p.y - 12, p.w + 24, p.h + 24);
+      for (const p of POND) rect(brush, '#eee1af', p.x - 6, p.y - 6, p.w + 12, p.h + 12);
+      for (const p of POND) rect(brush, '#397b99', p.x, p.y, p.w, p.h);
+      const insidePond = (px, py, inset) => [[-inset, 0], [inset, 0], [0, -inset], [0, inset]].every(([dx, dy]) =>
+        POND.some(p => px + dx >= p.x && px + dx < p.x + p.w && py + dy >= p.y && py + dy < p.y + p.h));
+      for (let py = 488; py < 640; py += 4) {
+        for (let px = 852; px < 1072; px += 4) {
+          if (insidePond(px, py, 8)) rect(brush, '#57a7b9', px, py, 4, 4);
+        }
+      }
+      for (let py = 496; py < 632; py += 16) {
+        for (let px = 860; px < 1064; px += 24) {
+          if (insidePond(px, py, 16)) {
+            rect(brush, '#9ad9d1', px + py % 12, py, 12, 2);
+          }
+        }
+      }
+      for (const [px, py] of [[900, 520], [1012, 576], [940, 608]]) {
+        blob(brush, '#3f8061', px, py + 2, 12, 6);
+        blob(brush, '#88b866', px, py, 10, 6);
+        rect(brush, '#d6eb9a', px - 6, py - 2, 6, 2);
+        rect(brush, '#edb9c9', px + 2, py - 6, 4, 4);
+      }
+      blob(brush, '#397b99', 954, 556, 16, 12);
+      blob(brush, '#eee1af', 952, 552, 12, 12);
+      blob(brush, '#a2ad7b', 952, 548, 8, 8);
+      for (const [px, py, count] of [[144, 368, 6], [760, 360, 4], [304, 640, 5],
+        [752, 432, 3], [968, 448, 5], [1128, 656, 3], [400, 920, 6]]) {
+        for (let i = 0; i < count; i++) {
+          const fx = px + i * 12, fy = py + i % 2 * 8;
+          rect(brush, '#4b8c5c', fx, fy + 2, 2, 8);
+          rect(brush, '#5b9e63', fx - 2, fy + 6, 6, 2);
+          rect(brush, i % 3 ? '#fff1cc' : '#e6a5a1', fx - 2, fy, 6, 4);
+          rect(brush, '#e2be69', fx, fy, 2, 2);
+        }
+      }
       for (const b of BUILDINGS) {
-        rect(brush, '#dcc792', b.door.x - 20, b.y + b.h, 40, 48);
-        building(brush, b);
-        for (const x of [b.x - 18, b.x + b.w + 10]) {
-          rect(brush, '#986d4b', x, b.y + 110, 10, 10);
-          rect(brush, '#e9b879', x - 3, b.y + 104, 7, 7);
-          rect(brush, '#f4d0c4', x + 4, b.y + 101, 7, 7);
+        cacheLayer({ x: b.x - 16, y: b.y - 32, w: b.w + 48, h: b.h + 56 }, b.y + b.h,
+          context => building(context, b));
+      }
+      const notice = DESTINATIONS.find(d => d.kind === 'board');
+      cacheLayer({ x: notice.x - 8, y: notice.y - 24, w: notice.w + 16, h: notice.h + 32 },
+        notice.y + notice.h, context => board(context, notice));
+      const phone = DESTINATIONS.find(d => d.kind === 'phone');
+      cacheLayer({ x: phone.x - 8, y: phone.y - 24, w: phone.w + 16, h: phone.h + 32 },
+        phone.y + phone.h, context => payphone(context, phone));
+      const forest = [...TREES];
+      for (let py = 40; py <= 136; py += 48) {
+        for (let px = 16; px < WIDTH + 32; px += 48) {
+          if (px > 548 && px < 732) continue;
+          forest.push({ x: px + (py === 88 ? 16 : 0), y: py });
         }
       }
-      rect(brush, '#a2a885', 372, 364, 152, 104);
-      rect(brush, '#a2a885', 364, 372, 168, 88);
-      rect(brush, '#527d91', 376, 372, 144, 88);
-      rect(brush, '#527d91', 372, 380, 152, 72);
-      rect(brush, '#80b4bb', 384, 380, 128, 72);
-      rect(brush, '#80b4bb', 380, 388, 136, 56);
-      for (let y = 392; y < 450; y += 16) {
-        for (let x = 390; x < 490; x += 36) rect(brush, '#b5dbce', x, y, 16, 2);
+      for (let py = 184; py <= HEIGHT; py += 48) {
+        for (const px of [24, 72, WIDTH - 72, WIDTH - 24]) forest.push({ x: px, y: py });
       }
-      for (const [x, y] of [[394, 432], [484, 400]]) {
-        rect(brush, '#5e865a', x, y, 16, 6);
-        rect(brush, '#5e865a', x + 3, y - 3, 10, 12);
-        rect(brush, '#91b975', x + 3, y, 7, 3);
+      for (let px = 120; px < WIDTH - 96; px += 48) {
+        forest.push({ x: px, y: HEIGHT - 40 }, { x: px + 16, y: HEIGHT + 8 });
       }
-      for (let x = 24; x < WIDTH; x += 48) {
-        tree(brush, x, 22);
-        tree(brush, x, HEIGHT - 28);
+      for (const t of forest) {
+        cacheLayer({ x: t.x - 48, y: t.y - 84, w: 104, h: 116 }, t.y + 16,
+          context => tree(context, t.x, t.y));
       }
-      for (let y = 70; y < HEIGHT - 48; y += 56) {
-        tree(brush, 12, y);
-        tree(brush, WIDTH - 12, y);
+      for (const p of PROPS) {
+        cacheLayer({ x: p.x - 12, y: p.y - 72, w: 84, h: 96 }, p.y + 12,
+          context => prop(context, p));
       }
-      rect(brush, '#203e4033', 388, 590, 50, 8);
-      rect(brush, '#66503d', 390, 570, 4, 26);
-      rect(brush, '#66503d', 426, 570, 4, 26);
-      rect(brush, '#a67e4e', 386, 570, 48, 5);
-      rect(brush, '#a67e4e', 386, 578, 48, 4);
-      rect(brush, '#c79b61', 384, 584, 52, 5);
-      rect(brush, '#66503d', 384, 589, 52, 3);
+      cacheLayer({ x: 696, y: 112, w: 180, h: 60 }, 168, context => {
+        rect(context, '#675f43', 708, 128, 8, 40);
+        sign(context, 'Ruta de expediciones', 780, 116, 160);
+        rect(context, '#537458', 702, 146, 20, 4);
+        rect(context, '#537458', 710, 138, 4, 12);
+      });
+      for (const px of [624, 640, 656]) {
+        rect(brush, '#bfaa75', px - 2, 184, 4, 4);
+        rect(brush, '#bfaa75', px - 6, 188, 12, 4);
+      }
+      layers.sort((a, b) => a.depth - b.depth);
     }
 
     function resize() {
@@ -269,7 +600,7 @@
       const pixelRatio = Math.min(host.devicePixelRatio || 1, 2);
       canvas.width = Math.round(bounds.width * pixelRatio);
       canvas.height = Math.round(bounds.height * pixelRatio);
-      scale = clamp(Math.min(bounds.width / 960, bounds.height / 600), 0.75, 1.5);
+      scale = clamp(Math.min(bounds.width / 1120, bounds.height / 760), 0.6, 1.5);
       viewWidth = bounds.width / scale;
       viewHeight = bounds.height / scale;
       draw();
@@ -277,8 +608,10 @@
 
     function draw() {
       if (!scenery || !avatar || !viewWidth) return;
-      const left = clamp(position.x - viewWidth / 2, 0, Math.max(0, WIDTH - viewWidth));
-      const top = clamp(position.y - viewHeight / 2, 0, Math.max(0, HEIGHT - viewHeight));
+      const left = viewWidth > WIDTH ? (WIDTH - viewWidth) / 2 :
+        clamp(position.x - viewWidth / 2, 0, WIDTH - viewWidth);
+      const top = viewHeight > HEIGHT ? (HEIGHT - viewHeight) / 2 :
+        clamp(position.y - viewHeight / 2, 0, HEIGHT - viewHeight);
       const zoom = canvas.width / viewWidth;
       ctx.setTransform(zoom, 0, 0, zoom, -Math.round(left * zoom), -Math.round(top * zoom));
       ctx.imageSmoothingEnabled = false;
@@ -286,21 +619,38 @@
       ctx.drawImage(scenery, 0, 0);
       const door = nearby(position);
       if (door) {
-        rect(ctx, '#fff0ac', door.door.x - 23, door.y + door.h + 8, 46, 4);
+        rect(ctx, '#fff0ac', door.door.x - 20, door.door.y + 8, 40, 4);
         ctx.strokeStyle = '#fff0ac';
         ctx.lineWidth = 2;
-        ctx.strokeRect(door.x + 59, door.y + door.h - 39, 42, 42);
+        if (door.kind === 'route') ctx.strokeRect(door.x + 4, door.y + 32, door.w - 8, door.h);
       }
-      ctx.fillStyle = '#203e4055';
-      ctx.beginPath();
-      ctx.ellipse(position.x, position.y + 2, 15, 5, 0, 0, Math.PI * 2);
-      ctx.fill();
-      avatar.draw(ctx, Math.round(position.x), Math.round(position.y));
+      const drawAvatar = () => {
+        ctx.fillStyle = '#203e4055';
+        ctx.beginPath();
+        ctx.ellipse(position.x, position.y + 2, 15, 5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        avatar.draw(ctx, Math.round(position.x), Math.round(position.y));
+      };
+      let drawn = false;
+      for (const layer of layers) {
+        if (!drawn && layer.depth > position.y) {
+          drawAvatar();
+          drawn = true;
+        }
+        if (layer.x + layer.w < left || layer.x > left + viewWidth ||
+            layer.y + layer.h < top || layer.y > top + viewHeight) continue;
+        ctx.drawImage(layer.image, layer.x, layer.y);
+      }
+      if (!drawn) drawAvatar();
       if (currentDoor !== door) {
         currentDoor = door;
+        if (door) $('town-action').classList.remove('hidden');
+        else $('town-action').classList.add('hidden');
         $('town-interact').disabled = !door;
-        $('town-interact').textContent = text(door ? 'Entrar' : 'Ac\u00e9rcate a una puerta');
-        $('town-nearby').textContent = door ? text(door.label) : text('Camina hasta una puerta para abrir su men\u00fa.');
+        $('town-interact').textContent = !door ? '' : text(
+          door.kind === 'board' ? 'Leer tabla' : door.kind === 'phone' ? 'Llamar' :
+            door.kind === 'route' ? 'Salir de expedici\u00f3n' : 'Entrar');
+        $('town-nearby').textContent = door ? text(door.label) : '';
       }
     }
 
@@ -411,7 +761,7 @@
     const originalInit = game.MenuUI.init;
     game.MenuUI.init = function (...args) {
       originalInit.apply(this, args);
-      for (const b of BUILDINGS) {
+      for (const b of DESTINATIONS) {
         const button = b.id === 'training' ? $('menu-training') :
           doc.querySelector('#scr-menu [data-go="' + b.id + '"]');
         if (!button || typeof button.onclick !== 'function') {
@@ -508,7 +858,8 @@
     return game.Town;
   }
 
-  const api = { WIDTH, HEIGHT, RADIUS, SPEED, SPAWN, BUILDINGS, SOLIDS, walkable, move, nearby, direction, install };
+  const api = { WIDTH, HEIGHT, RADIUS, SPEED, SPAWN, BUILDINGS, DESTINATIONS, PLAZA, POND, PATHS, PROPS,
+    SOLIDS, walkable, move, nearby, direction, install };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else {
     window.PSTown = api;
