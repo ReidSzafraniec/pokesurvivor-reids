@@ -1,0 +1,500 @@
+(function () {
+  'use strict';
+
+  const START_LEVEL = 1, MAX_LEVEL = 100, MAX_MOVES = 4;
+  const object = value => value !== null && typeof value === 'object' && !Array.isArray(value);
+  const integer = value => Number.isSafeInteger(value) && value >= 0 ? value : 0;
+
+  function create(data) {
+    let game, activeRun, selectedDex, startFromTraining = false, returnToLobby = false;
+
+    function species(dex) {
+      if (!Object.hasOwn(data.pokemon, dex)) throw new RangeError('Unknown Pokemon: ' + dex);
+      return data.pokemon[dex];
+    }
+
+    function xpAt(dex, level) {
+      if (!Number.isInteger(level) || level < 1 || level > MAX_LEVEL) {
+        throw new RangeError('Pokemon levels must be between 1 and 100');
+      }
+      return data.growth[species(dex).growth][level];
+    }
+
+    function levelAt(dex, xp) {
+      let level = START_LEVEL;
+      while (level < MAX_LEVEL && xp >= xpAt(dex, level + 1)) level++;
+      return level;
+    }
+
+    const attack = id => id === 'struggle' || (data.moves[id] && !data.moves[id].support);
+
+    function learnedTms(save, dex) {
+      const taught = Array.isArray(save.ptm?.[dex]) ? save.ptm[dex] : [];
+      return [...new Set(taught.filter(id => species(dex).tms.includes(id)))];
+    }
+
+    function eligible(save, dex, level) {
+      const ids = [...new Set(species(dex).moves.filter(([, at]) => at <= level)
+        .map(([id]) => id).concat(learnedTms(save, dex)))];
+      // Some species have no implemented attack yet. This is a visible combat
+      // fallback, never a fabricated entry in that species' official learnset.
+      if (!ids.some(attack)) ids.unshift('struggle');
+      return ids;
+    }
+
+    function defaultLoadout(save, dex, allowed) {
+      const bindings = Array.isArray(save.pbind?.[dex]) ? save.pbind[dex] : [];
+      const old = [save.pstart?.[dex], save.pstart2?.[dex], ...bindings];
+      const ids = [...new Set(old.concat(allowed).filter(id => allowed.includes(id)))];
+      const firstAttack = ids.find(attack);
+      return [firstAttack, ...ids.filter(id => id !== firstAttack)].slice(0, MAX_MOVES);
+    }
+
+    function cleanRecord(save, dex, entry) {
+      entry = object(entry) ? entry : {};
+      const xp = Math.max(xpAt(dex, START_LEVEL), Math.min(xpAt(dex, MAX_LEVEL), integer(entry.xp)));
+      const allowed = eligible(save, dex, levelAt(dex, xp));
+      let loadout = Array.isArray(entry.loadout)
+        ? [...new Set(entry.loadout.filter(id => allowed.includes(id)))].slice(0, MAX_MOVES) : [];
+      if (!loadout.some(attack)) loadout = defaultLoadout(save, dex, allowed);
+      return { xp, loadout, updated: integer(entry.updated) };
+    }
+
+    function normalize(save) {
+      if (!object(save.training)) save.training = {};
+      for (const dex of Object.keys(save.training)) {
+        if (!Object.hasOwn(data.pokemon, dex) || !save.owned?.[dex]) delete save.training[dex];
+        else save.training[dex] = cleanRecord(save, dex, save.training[dex]);
+      }
+      return save;
+    }
+
+    function record(save, dex) {
+      species(dex);
+      if (!save.owned?.[dex]) throw new RangeError('Train an owned Pokemon');
+      if (!object(save.training)) save.training = {};
+      return (save.training[dex] = cleanRecord(save, dex, save.training[dex]));
+    }
+
+    function state(save, dex) {
+      const entry = record(save, dex), level = levelAt(dex, entry.xp);
+      const floor = xpAt(dex, level), next = level < MAX_LEVEL ? xpAt(dex, level + 1) : floor;
+      return {
+        xp: entry.xp, level, current: entry.xp - floor, next: next - floor,
+        remaining: next - entry.xp, loadout: entry.loadout.slice(),
+        progress: level === MAX_LEVEL ? 1 : (entry.xp - floor) / (next - floor),
+        version: data.versions[species(dex).version]
+      };
+    }
+
+    function available(save, dex) {
+      return eligible(save, dex, state(save, dex).level);
+    }
+
+    function setLoadout(save, dex, ids, now = Date.now()) {
+      const allowed = available(save, dex);
+      if (!Array.isArray(ids) || !ids.length || ids.length > MAX_MOVES ||
+          new Set(ids).size !== ids.length || ids.some(id => !allowed.includes(id)) ||
+          !ids.some(attack)) {
+        throw new RangeError('Choose up to four different unlocked moves, including an attack');
+      }
+      const entry = record(save, dex);
+      entry.loadout = ids.slice();
+      entry.updated = Math.max(integer(now), entry.updated + 1);
+      return state(save, dex);
+    }
+
+    function reward({ time, kills, bosses }) {
+      if (![time, kills, bosses].every(value => Number.isFinite(value) && value >= 0) ||
+          !Number.isInteger(kills) || !Number.isInteger(bosses)) {
+        throw new RangeError('Invalid match performance');
+      }
+      const earned = Math.floor(time * 2) + kills * 3 + bosses * 200;
+      if (!Number.isSafeInteger(earned)) throw new RangeError('Match XP exceeds the supported range');
+      return earned;
+    }
+
+    function award(save, dex, performance) {
+      const before = state(save, dex), previous = available(save, dex);
+      const earned = reward(performance);
+      record(save, dex).xp = Math.min(xpAt(dex, MAX_LEVEL), before.xp + earned);
+      const after = state(save, dex);
+      return {
+        dex: +dex, earned, gained: after.xp - before.xp, before, after,
+        unlocked: available(save, dex).filter(id => id !== 'struggle' && !previous.includes(id))
+      };
+    }
+
+    function merge(target, left, right) {
+      const a = object(left.training) ? left.training : {};
+      const b = object(right.training) ? right.training : {};
+      target.training = {};
+      for (const dex of new Set([...Object.keys(a), ...Object.keys(b)])) {
+        if (!Object.hasOwn(data.pokemon, dex) || !target.owned?.[dex]) continue;
+        const x = cleanRecord(target, dex, a[dex]), y = cleanRecord(target, dex, b[dex]);
+        const latest = x.updated === y.updated
+          ? (JSON.stringify(x.loadout) >= JSON.stringify(y.loadout) ? x : y)
+          : (x.updated > y.updated ? x : y);
+        target.training[dex] = cleanRecord(target, dex, {
+          xp: Math.max(x.xp, y.xp), loadout: latest.loadout, updated: latest.updated
+        });
+      }
+      return target;
+    }
+
+    function temporaryOffers(stats, player, pickN, count = 3) {
+      return pickN(stats.filter(stat => !stat.max || (player.statsTaken[stat.id] || 0) < stat.max), count)
+        .map(stat => ({
+          type: 'stat', key: 'stat:' + stat.id, icon: stat.icon, color: '#8fa3c4',
+          tag: 'Mejora temporal', title: stat.title, desc: stat.desc,
+          apply(target) {
+            stat.apply(target);
+            target.statsTaken[stat.id] = (target.statsTaken[stat.id] || 0) + 1;
+          }
+        }));
+    }
+
+    const $ = id => document.getElementById(id);
+    const text = value => game.T(value);
+    const number = value => value.toLocaleString(game.I18n.locale);
+    const moveName = id => game.T(game.Moves.BY_ID[id].name, 'move');
+    const escape = value => game.U.esc(value);
+
+    function saveChanges() {
+      if (game.DB.guest) return true;
+      if (!game.DB.commit()) {
+        game.UI.toast(text('No se pudo guardar. No cierres el juego.'), 4500);
+        return false;
+      }
+      return true;
+    }
+
+    function progressHtml(dex) {
+      const value = state(game.DB.save, dex);
+      return '<b>' + text('Nivel de Pok\u00e9mon') + ' ' + value.level + '</b>' +
+        '<progress class="training-xp" max="1" value="' + value.progress + '" aria-label="' +
+        text('Experiencia de Pok\u00e9mon') + '"></progress><small>' +
+        (value.level === MAX_LEVEL ? text('Nivel m\u00e1ximo') : number(value.current) + ' / ' +
+          number(value.next) + ' XP') + '</small>';
+    }
+
+    function renderMenu() {
+      const save = game.DB.save;
+      if (save?.partner && save.owned[save.partner]) {
+        $('menu-training-progress').innerHTML = progressHtml(save.partner);
+      }
+    }
+
+    function sourceName(value) {
+      const names = {
+        'scarlet-violet': 'Scarlet / Violet',
+        'the-teal-mask': 'Scarlet / Violet: The Teal Mask',
+        'the-indigo-disk': 'Scarlet / Violet: The Indigo Disk',
+        'brilliant-diamond-shining-pearl': 'Brilliant Diamond / Shining Pearl',
+        'legends-arceus': 'Legends: Arceus',
+        'sword-shield': 'Sword / Shield',
+        'the-crown-tundra': 'Sword / Shield: The Crown Tundra',
+        'the-isle-of-armor': 'Sword / Shield: The Isle of Armor',
+        'ultra-sun-ultra-moon': 'Ultra Sun / Ultra Moon',
+        'lets-go-pikachu-lets-go-eevee': "Let's Go Pikachu / Eevee"
+      };
+      return names[value] || value.split('-').map(word => word[0].toUpperCase() + word.slice(1)).join(' ');
+    }
+
+    function render() {
+      const save = game.DB.save, dex = selectedDex;
+      const mon = game.DEX_BY[dex], value = state(save, dex), allowed = available(save, dex);
+      $('training-name').textContent = mon.name;
+      $('training-progress').innerHTML = progressHtml(dex);
+      $('training-source').textContent = text('Datos de movimientos') + ': ' + sourceName(value.version);
+      $('training-guest').classList.toggle('hidden', !game.DB.guest);
+      $('training-fallback').classList.toggle('hidden', !allowed.includes('struggle'));
+      $('training-play').classList.toggle('hidden', !startFromTraining);
+      game.UI.sprite($('training-stage'), dex, {
+        lively: true, scale: 3, hero: true,
+        shiny: dex === save.partner && !!save.partnerShiny && game.DB.ownsShiny(dex),
+        skin: game.Skins.worn(save, dex)
+      });
+
+      const slots = $('training-slots');
+      slots.replaceChildren();
+      for (let slot = 0; slot < MAX_MOVES; slot++) {
+        const label = document.createElement('label'), select = document.createElement('select');
+        label.className = 'training-slot';
+        label.append(text('Movimiento') + ' ' + (slot + 1));
+        select.className = 'field';
+        select.setAttribute('aria-label', text('Movimiento') + ' ' + (slot + 1));
+        select.append(new Option(text('Vac\u00edo'), ''));
+        for (const id of allowed) {
+          const option = new Option(moveName(id), id);
+          option.disabled = value.loadout.includes(id) && value.loadout[slot] !== id;
+          select.append(option);
+        }
+        select.value = value.loadout[slot] || '';
+        select.onchange = () => {
+          const ids = value.loadout.slice();
+          ids[slot] = select.value;
+          try {
+            setLoadout(save, dex, ids.filter(Boolean));
+          } catch (error) {
+            if (!(error instanceof RangeError)) throw error;
+            game.UI.toast(text('Elige al menos un ataque. No repitas movimientos.'), 3500);
+            render();
+            return;
+          }
+          saveChanges();
+          game.Audio.sfx('select');
+          render();
+        };
+        label.append(select);
+        slots.append(label);
+      }
+
+      const list = $('training-moves');
+      list.replaceChildren();
+      const entries = species(dex).moves.map(([id, level]) => ({ id, level }));
+      for (const id of learnedTms(save, dex)) {
+        const existing = entries.find(entry => entry.id === id);
+        if (existing) existing.tm = true;
+        else entries.push({ id, tm: true });
+      }
+      if (!entries.length) {
+        const empty = document.createElement('p');
+        empty.className = 'sub';
+        empty.textContent = text('Esta especie no tiene movimientos de nivel implementados.');
+        list.append(empty);
+      }
+      for (const entry of entries) {
+        const def = game.Moves.BY_ID[entry.id], unlocked = allowed.includes(entry.id);
+        const row = document.createElement('div');
+        row.className = 'training-move panel' + (unlocked ? '' : ' locked');
+        const learned = entry.tm ? 'MT' : entry.level === 0 ? text('Evoluci\u00f3n') :
+          text('Nivel') + ' ' + entry.level;
+        row.innerHTML = game.Icons.html('move:' + entry.id, 26) +
+          '<div><b>' + escape(moveName(entry.id)) + '</b><small>' + escape(text(def.desc)) +
+          '</small></div><div class="training-unlock"><b>' + escape(learned) + '</b><small>' +
+          text(unlocked ? 'Disponible' : 'Bloqueado') + '</small></div>';
+        list.append(row);
+      }
+    }
+
+    function open(dex = game.DB.save.partner, play = false) {
+      if (game.Game.state !== 'ui') {
+        game.UI.toast(text('Cambia tus movimientos entre partidas.'), 3000);
+        return;
+      }
+      record(game.DB.save, dex);
+      selectedDex = +dex;
+      startFromTraining = play;
+      returnToLobby = game.UI.isOpen('scr-lobby') && !!game.Social.room;
+      const select = $('training-mon');
+      select.replaceChildren();
+      for (const id of Object.keys(game.DB.save.owned).map(Number).filter(id => game.DEX_BY[id])) {
+        select.append(new Option(game.DEX_BY[id].name + ' - ' + text('Nivel') + ' ' +
+          state(game.DB.save, id).level, id));
+      }
+      select.value = dex;
+      select.disabled = play;
+      select.onchange = () => { selectedDex = +select.value; render(); };
+      game.UI.show('scr-training', true);
+      render();
+      $('training-back').focus();
+    }
+
+    function decorateDex(dex) {
+      if (!game.DB.save.owned[dex]) return;
+      const moves = $('dex-moves');
+      const summary = document.createElement('div');
+      summary.className = 'training-summary';
+      summary.innerHTML = progressHtml(dex);
+      const button = document.createElement('button');
+      button.className = 'btn small';
+      button.textContent = text('Elegir movimientos');
+      button.onclick = () => open(dex);
+      summary.append(button);
+      moves.before(summary);
+    }
+
+    function decorateUpgrades(dex) {
+      const panel = document.querySelector('#upg-list .bind-panel');
+      if (!panel) return;
+      panel.replaceChildren();
+      const button = document.createElement('button');
+      button.className = 'btn';
+      button.textContent = text('Elegir movimientos');
+      button.onclick = () => open(dex);
+      panel.append(button);
+    }
+
+    function preparePlayer(player) {
+      const value = state(game.DB.save, player.dex);
+      player.moves = [];
+      player.slots = [];
+      player.bind = {};
+      player.active = 0;
+      player.pokemonLevel = value.level;
+      for (const id of value.loadout) player.addMove(id);
+      activeRun = { player, save: game.DB.save, result: null };
+    }
+
+    function install(context) {
+      if (game) throw new Error('Pokemon training is already installed');
+      game = context;
+      for (const mon of game.DEX) species(mon.dex);
+      for (const id of Object.keys(data.moves)) {
+        if (!game.Moves.BY_ID[id]) throw new Error('Unsupported combat move: ' + id);
+      }
+      game.Training = api;
+      addTranslations();
+      const tackle = game.Moves.BY_ID.tackle;
+      game.Moves.BY_ID.struggle = {
+        ...tackle, id: 'struggle', name: 'Forcejeo',
+        desc: 'Ataque de emergencia hasta desbloquear un ataque compatible.'
+      };
+      for (const [id, info] of Object.entries(data.moves)) {
+        game.Moves.BY_ID[id].name = info.names.es;
+      }
+      for (const lang of ['en', 'fr', 'it', 'pt-BR', 'zh-Hans', 'zh-Hant']) {
+        const dictionary = {};
+        for (const info of Object.values(data.moves)) {
+          dictionary[info.names.es] = info.names[lang] || info.names.en;
+        }
+        dictionary.Forcejeo = 'Struggle';
+        game.I18n.add(dictionary, lang, 'move');
+      }
+      game.TM_OF = dex => species(dex).tms.slice();
+      game.Mons.taught = dex => learnedTms(game.DB.save || {}, dex);
+      game.Moves.poolFor = (mon, naturalOnly = false) => {
+        const save = game.DB.save;
+        const level = save?.owned[mon.dex] ? state(save, mon.dex).level : START_LEVEL;
+        const natural = species(mon.dex).moves.filter(([, at]) => at <= level).map(([id]) => id);
+        return [...new Set(natural.concat(!naturalOnly && save ? learnedTms(save, mon.dex) : []))];
+      };
+      game.startMoveOf = dex => state(game.DB.save, dex).loadout[0];
+      game.startMove2Of = () => null;
+      const oldPerks = game.Upgrades.perks;
+      game.Upgrades.perks = upgrades => ({ ...oldPerks(upgrades), startMoves: 1, bans: 0 });
+      const obsolete = new Set(['moves', 'start', 'start2', 'ban']);
+      game.Upgrades.LIST.splice(0, game.Upgrades.LIST.length,
+        ...game.Upgrades.LIST.filter(upgrade => !obsolete.has(upgrade.id)));
+      game.LevelUp.offer = (player, count = 3) =>
+        temporaryOffers(game.LevelUp.STATS, player, game.U.pickN, count);
+
+      const originalEvent = game.Progress.event;
+      game.Progress.event = function (event, details) {
+        if (event === 'runEnd' && activeRun && !activeRun.result) {
+          if (activeRun.save !== game.DB.save || activeRun.player !== game.Game.player) {
+            throw new Error('Pokemon XP cannot be awarded to a different account or match');
+          }
+          const player = activeRun.player;
+          activeRun.result = award(game.DB.save, player.dex, {
+            time: details.time, kills: player.kills, bosses: player.bosses
+          });
+        }
+        return originalEvent.call(this, event, details);
+      };
+      const originalShowOver = game.RunUI.showOver;
+      game.RunUI.showOver = function (...args) {
+        originalShowOver.apply(this, args);
+        const result = activeRun?.result;
+        if (!result) return;
+        const summary = document.createElement('div');
+        summary.className = 'training-result';
+        summary.innerHTML = '<span>' + text('Experiencia de Pok\u00e9mon') + '</span><b class="gold">' +
+          escape(game.DEX_BY[result.dex].name) + ' +' + number(result.gained) + ' XP</b><p>' +
+          text('Nivel de Pok\u00e9mon') + ' ' + result.before.level + ' &rarr; ' + result.after.level +
+          '</p>' + progressHtml(result.dex) +
+          (result.unlocked.length ? '<p class="gold">' + text('Nuevos movimientos') + ': ' +
+            result.unlocked.map(id => escape(moveName(id))).join(', ') + '</p>' : '');
+        $('over-stats').prepend(summary);
+      };
+
+      const originalShow = game.UI.show;
+      game.UI.show = function (id, ...args) {
+        originalShow.call(this, id, ...args);
+        if (id === 'scr-menu') renderMenu();
+      };
+      const originalInit = game.MenuUI.init;
+      const originalPlay = game.Flow.play;
+      game.Flow.play = () => open(game.DB.save.partner, true);
+      game.MenuUI.init = function () {
+        originalInit.call(this);
+        $('menu-training').insertAdjacentHTML('afterbegin',
+          '<span class="mi-ico">' + game.Icons.html('book', 26) + '</span>');
+        $('menu-training').onclick = () => open();
+        $('training-back').onclick = () => {
+          if (returnToLobby && game.Social.room) game.LobbyUI.open();
+          else game.MenuUI.open();
+        };
+        $('training-play').onclick = () => {
+          if (saveChanges()) originalPlay.call(game.Flow);
+        };
+        const lobby = document.querySelector('#scr-lobby .box');
+        const button = document.createElement('button');
+        button.className = 'btn small';
+        button.textContent = text('Elegir movimientos');
+        button.onclick = () => open();
+        lobby.append(button);
+      };
+      game.DB.onSync(() => {
+        renderMenu();
+        if (game.DB.save && game.UI.isOpen('scr-training')) {
+          if (!game.DB.save.owned[selectedDex]) selectedDex = game.DB.save.partner;
+          render();
+        }
+      });
+      return api;
+    }
+
+    function addTranslations() {
+      game.I18n.add({
+        'Entrenamiento': 'Training',
+        'Niveles y cuatro movimientos': 'Levels and four moves',
+        'Elegir movimientos': 'Choose moves',
+        'Nivel de Pok\u00e9mon': 'Pokemon level',
+        'Experiencia de Pok\u00e9mon': 'Pokemon experience',
+        'Nivel m\u00e1ximo': 'Maximum level',
+        'Datos de movimientos': 'Move data',
+        'Movimiento': 'Move',
+        'Nivel': 'Level',
+        'Vac\u00edo': 'Empty',
+        'Disponible': 'Unlocked',
+        'Bloqueado': 'Locked',
+        'Evoluci\u00f3n': 'Evolution',
+        'Mejora temporal': 'Temporary upgrade',
+        'Nuevos movimientos': 'New moves',
+        'Nivel de la partida': 'Run level',
+        'Preparar partida': 'Prepare for a match',
+        'Empezar partida': 'Start match',
+        'Tu Pok\u00e9mon gana 2 XP por segundo, 3 por enemigo y 200 por jefe al terminar la partida.':
+          'Your Pokemon earns 2 XP per second, 3 per defeated enemy and 200 per boss when the match ends.',
+        'Elige hasta cuatro movimientos antes de jugar. Las mejoras de la partida son temporales.':
+          'Choose up to four moves before playing. In-match upgrades are temporary.',
+        'Se muestran los movimientos implementados, con los niveles y especies de los juegos oficiales. Las MT aprendidas tambi\u00e9n se pueden equipar.':
+          'Only implemented moves are shown, with official species eligibility and learn levels. Learned TMs can also be equipped.',
+        'Modo invitado: los niveles y movimientos se pierden al salir. Crea una cuenta para guardarlos.':
+          'Guest mode: levels and moves are lost when you leave. Create an account to save them.',
+        'Forcejeo es un ataque de emergencia: esta especie a\u00fan no tiene un ataque compatible desbloqueado.':
+          'Struggle is an emergency attack: this species has no compatible attack unlocked yet.',
+        'Esta especie no tiene movimientos de nivel implementados.':
+          'This species has no implemented level-up moves.',
+        'Ataque de emergencia hasta desbloquear un ataque compatible.':
+          'Emergency attack until a compatible attack is unlocked.',
+        'Elige al menos un ataque. No repitas movimientos.':
+          'Choose at least one attack. Do not repeat moves.',
+        'Cambia tus movimientos entre partidas.': 'Change your moves between matches.',
+        'No se pudo guardar. No cierres el juego.': 'Could not save. Do not close the game.'
+      });
+    }
+
+    const api = {
+      START_LEVEL, MAX_LEVEL, MAX_MOVES, xpAt, levelAt, normalize, state, available,
+      setLoadout, reward, award, merge, temporaryOffers, install, open,
+      preparePlayer, decorateDex, decorateUpgrades
+    };
+    return api;
+  }
+
+  if (typeof module === 'object' && module.exports) module.exports = { create };
+  else window.PSTraining = create(window.PS_LEARNSETS);
+})();

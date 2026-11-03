@@ -15,3 +15,18 @@ window.PS_PAGES = !!document.querySelector('meta[name="ps-pages"]');
   p[0].textContent = copy[0]; p[1].textContent = copy[1];
 })();
 
+addEventListener('error', function (event) {
+  var boot = document.getElementById('boot');
+  var source = event.target && event.target.src || event.filename || '';
+  if (!boot || boot.classList.contains('hidden') ||
+      !/(?:learnsets|training|app\.min)\.js(?:\?|$)/.test(source)) return;
+  var spanish = window.PS_LOCALES && window.PS_LOCALES.lang === 'es';
+  var message = document.createElement('p'), retry = document.createElement('button');
+  message.textContent = spanish
+    ? 'No se pudo cargar el juego. Comprueba tu conexión y recarga.'
+    : 'Could not load the game. Check your connection and reload.';
+  retry.className = 'btn gold';
+  retry.textContent = spanish ? 'Recargar' : 'Reload';
+  retry.onclick = function () { location.reload(); };
+  boot.replaceChildren(message, retry);
+}, true);

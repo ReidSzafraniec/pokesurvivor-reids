@@ -65,7 +65,7 @@ unos tipos y debilitan otros.
 Cada día hay **misiones** (y semanales) que dan tickets y monedas; los
 **logros** dan medallas y títulos, y tu **perfil** enseña tus 3 Pokémon
 favoritos, tus marcas y tus medallas. En las runs encuentras **objetos** (Restos,
-Cinta Elección...) y tus movimientos **evolucionan** al máximo nivel. Los
+Cinta Elección...) y mejoras temporales de estadísticas. Los
 enemigos tienen personalidad: curan, ponen escudos, llaman a su manada o atacan
 con aviso en el suelo.
 
@@ -81,14 +81,65 @@ normal o shiny.
 La música suena tras el primer clic (los navegadores no dejan reproducir sonido
 antes). Volumen y silencio: botón del altavoz arriba a la derecha, o en la pausa.
 
-El guardado vive en el `localStorage` del navegador: si borras los datos del
-sitio, se pierde.
+El guardado local de las cuentas vive en el `localStorage` del navegador: si
+borras los datos del sitio y no tienes copia en la nube, se pierde. Los invitados
+no guardan progreso al cerrar o recargar.
+
+## Entrenamiento persistente
+
+Cada Pokémon empieza en **nivel 1** y conserva su experiencia hasta el **nivel
+100**, con su curva de crecimiento oficial. Al terminar una partida (también al
+salir desde la pausa) gana `floor(segundos × 2) + enemigos × 3 + jefes × 200` XP.
+El nivel de Pokémon desbloquea movimientos; no añade otra escala permanente de
+estadísticas. El nivel temporal de la partida sigue dando mejoras de estadísticas
+y los objetos y vínculos siguen funcionando, pero ya no se consiguen, mejoran ni
+evolucionan ataques con las cartas de nivel.
+
+En **Entrenamiento**, o al pulsar **Jugar**, eliges entre uno y **cuatro
+movimientos distintos**, con al menos un ataque. Se equipan desde el inicio de
+la partida y no se cambian mientras juegas. Todos los movimientos oficiales de
+su nivel inicial que estén implementados están disponibles desde el principio,
+con hasta cuatro equipados. Subir de nivel desbloquea opciones
+para elegir después: no sustituye automáticamente tu equipo. La versión normal
+y shiny comparten nivel y movimientos; cada especie tiene progreso independiente.
+
+Esta primera versión usa los **103 movimientos de combate ya implementados**:
+no incluye todos los ataques de los juegos oficiales y mantiene su adaptación al
+combate de supervivencia. Sus especies compatibles y niveles proceden de
+**Escarlata/Púrpura**, o del juego oficial más reciente disponible en los datos si
+la especie no aparece allí. La pantalla muestra el juego de origen. Las MT
+aprendidas se pueden equipar si son compatibles. Si todavía no hay un ataque
+implementado disponible (por ejemplo, Magikarp antes del nivel 15), se ofrece
+**Forcejeo** como ataque de emergencia, no como movimiento de su lista oficial.
+
+Las cuentas anteriores migran sin perder sus otros datos. Se conservan las
+preferencias de ataques legales cuando es posible. Las antiguas compras de
+huecos, ataques iniciales y vetos permanecen en el guardado, pero quedan
+inactivas y no se reembolsan. Al fusionar cuentas/dispositivos se conserva la
+**XP máxima por especie**, no se suman sesiones paralelas; el equipo se resuelve
+por su fecha de edición.
+
+### Datos y comprobaciones
+
+`js/training.js` contiene el modelo legible y la integración; `js/app.min.js`
+conserva el motor existente con hooks puntuales. `js/data/learnsets.js` incluye
+los datos sin consultas a PokeAPI durante el juego. La revisión de origen y su
+licencia están en [CREDITS.md](CREDITS.md).
+
+```sh
+# Python 3; descarga CSV de una revisión fija de PokeAPI.
+python tools/generate_learnsets.py
+# O reutiliza los CSV descargados:
+python tools/generate_learnsets.py --csv-dir /ruta/a/csv
+# Node.js 18+, sin dependencias adicionales:
+node --test tests/training.test.cjs
+```
 
 ## Guardado en la nube y publicación
 
 - **Base de datos (Firebase):** cuentas con nombre + contraseña o Google, y la
   partida se sigue en cualquier ordenador.
-  Sin cuenta, el juego guarda sólo en el navegador.
+  Las cuentas locales guardan sólo en el navegador; los invitados no guardan.
 - **Jugar con amigos (hasta 4) y ranking:** con cuenta en la nube, menú
   **Amigos** (añadir por apodo, invitar a tu sala) y **Ranking** (tiempo
   aguantado: solo o grupo, de hoy a histórico, amigos, por Pokémon).

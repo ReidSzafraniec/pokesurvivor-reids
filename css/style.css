@@ -1172,3 +1172,33 @@ html:lang(zh) .btn, html:lang(zh) .chip { letter-spacing: 0; }
   .topbar .btn.small { padding: 2px 4px; }
   .topbar img { width: 14px; height: 14px; }
 }
+
+/* Persistent Pokemon levels and the between-match moveset. */
+#scr-training { padding-top: 66px; }
+.training-head { display: flex; align-items: center; gap: 20px; }
+.training-head .stage { flex: 0 0 160px; }
+.training-head select { width: 100%; max-width: 360px; }
+.training-summary { display: grid; gap: 4px; margin: 8px 0; }
+.training-summary small { color: var(--muted); }
+.training-xp { display: block; width: 100%; height: 12px; accent-color: var(--gold); }
+.training-slots { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 14px 0; }
+.training-slot { display: grid; gap: 6px; min-width: 0; }
+.training-slot select { width: 100%; min-width: 0; }
+.training-moves { max-height: 32vh; overflow-y: auto; overscroll-behavior: contain; }
+.training-move { display: flex; align-items: center; gap: 12px; margin: 6px 0; padding: 10px; }
+.training-move > div:first-of-type { flex: 1; }
+.training-move small { display: block; color: var(--muted); font-size: 13px; }
+.training-move.locked { opacity: .6; }
+.training-unlock { text-align: right; white-space: nowrap; }
+.training-result { grid-column: 1 / -1; padding: 12px; border: 2px solid var(--gold); border-radius: 8px; }
+.training-result p { margin: 6px 0; }
+#training-play { display: block; margin: 14px 0 0 auto; }
+@media (max-width: 760px) {
+  .training-slots { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-height: 520px) {
+  #scr-training { padding: 8px; }
+  .training-head .stage { display: none; }
+  .training-box { padding: 14px 18px; }
+  .training-moves { max-height: 180px; }
+}
