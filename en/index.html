@@ -83,7 +83,7 @@
   ]
 }
 </script>
-<link rel="stylesheet" href="css/style.css?v=town-3">
+<link rel="stylesheet" href="css/style.css?v=town-training-1">
 <script src="js/core/locales.js?v=ba2ae89740"></script>
 <script src="js/noframe.js"></script>
 </head>
@@ -202,9 +202,8 @@
       <div class="menu-list">
         <button id="menu-town" class="menu-item hidden">Volver al pueblo</button>
         <button class="menu-item play" data-go="play">Jugar<small>Entra en la mazmorra</small></button>
-        <button id="menu-training" class="menu-item">Entrenamiento<small>Niveles y cuatro movimientos</small></button>
+        <button id="menu-training" class="menu-item">Entrenamiento<small>Estadísticas, movimientos y ventajas</small></button>
         <button class="menu-item" data-go="dex">Pokémon<small id="menu-dex-count">Tu colección</small></button>
-        <button class="menu-item" data-go="upgrades">Mejoras<small>Haz más fuerte cada run</small></button>
         <button class="menu-item" data-go="shop">Tienda Kecleon<small>Mentas, Cápsulas y MT</small></button>
         <button class="menu-item" data-go="bag">Mochila<small id="menu-bag-sub">Vacía</small></button>
         <button class="menu-item" data-go="gacha">Gacha<small>9 regiones · Pokémon y shinies</small></button>
@@ -518,7 +517,7 @@
       <h2 id="training-title">Entrenamiento</h2>
       <button id="training-back" class="btn small ghost">Volver</button>
     </div>
-    <p class="sub">Elige hasta cuatro movimientos. Todos atacan juntos desde el inicio, cada uno a su ritmo.</p>
+    <p class="sub">Tu Pokémon crece con cada nivel permanente. Prepara sus movimientos y compra ventajas.</p>
     <div class="training-head">
       <canvas id="training-stage" class="stage" width="160" height="120"></canvas>
       <div class="grow">
@@ -530,12 +529,50 @@
         <p id="training-evolution" class="note gold"></p>
       </div>
     </div>
+    <div id="training-stats" class="training-stats" aria-label="Estadísticas del juego"></div>
+    <p class="note">Del nivel 1 al 100: +50% de HP, ataques y defensas; +15% de velocidad. La naturaleza modifica un +10% y un -10% sus estadísticas indicadas.</p>
+    <div class="panel training-traits">
+      <b id="training-nature"></b>
+      <b id="training-ability"></b>
+      <p id="training-ability-effect" class="note"></p>
+      <details>
+        <summary>Cambiar naturaleza o habilidad</summary>
+        <p class="note">Usa tus objetos de la mochila. Consigue Mentas y Cápsulas en la Tienda Kecleon.</p>
+        <div class="training-item-row">
+          <label for="training-nature-select">Naturaleza</label>
+          <select id="training-nature-select" class="field"></select>
+          <button id="training-mint" class="btn small">Usar Menta</button>
+        </div>
+        <div class="training-item-row">
+          <label for="training-cap-select">Habilidad</label>
+          <select id="training-cap-select" class="field"></select>
+          <button id="training-cap" class="btn small">Usar Cápsula</button>
+        </div>
+        <div class="training-item-row">
+          <label for="training-caph-select">Habilidad oculta</label>
+          <select id="training-caph-select" class="field"></select>
+          <button id="training-caph" class="btn small">Usar Cápsula oculta</button>
+        </div>
+      </details>
+    </div>
     <p class="note">Ganas XP permanente al terminar, según el tiempo sobrevivido y los Pokémon derrotados, con un extra por jefes. Los primeros 10 niveles son más rápidos.</p>
     <p id="training-guest" class="note gold hidden">Modo invitado: los niveles y movimientos se pierden al salir. Crea una cuenta para guardarlos.</p>
-    <p id="training-fallback" class="note gold hidden">Forcejeo es un ataque de emergencia: esta especie aún no tiene un ataque compatible desbloqueado.</p>
-    <div id="training-slots" class="training-slots"></div>
-    <p class="note">Se muestran los movimientos implementados, con los niveles y especies de los juegos oficiales. Las MT aprendidas también se pueden equipar.</p>
-    <div id="training-moves" class="training-moves"></div>
+    <div class="training-tabs" role="tablist" aria-label="Entrenamiento">
+      <button id="training-tab-moves" class="btn" role="tab" aria-selected="true" aria-controls="training-panel-moves">Movimientos</button>
+      <button id="training-tab-perks" class="btn" role="tab" aria-selected="false" aria-controls="training-panel-perks" tabindex="-1">Ventajas</button>
+    </div>
+    <div id="training-panel-moves" role="tabpanel" aria-labelledby="training-tab-moves">
+      <p class="note">Elige hasta cuatro movimientos. Todos atacan juntos desde el inicio, cada uno a su ritmo.</p>
+      <p id="training-fallback" class="note gold hidden">Forcejeo es un ataque de emergencia: esta especie aún no tiene un ataque compatible desbloqueado.</p>
+      <div id="training-slots" class="training-slots"></div>
+      <p class="note">Se muestran los movimientos implementados, con los niveles y especies de los juegos oficiales. Las MT aprendidas también se pueden equipar.</p>
+      <div id="training-moves" class="training-moves"></div>
+    </div>
+    <div id="training-panel-perks" class="hidden" role="tabpanel" aria-labelledby="training-tab-perks">
+      <div class="row between"><h3>Ventajas permanentes</h3><b id="training-coins" class="gold" aria-live="polite"></b></div>
+      <p class="note">Las ventajas son de cada Pokémon. Aprendizaje aumenta tanto la XP de partida como la permanente. HP, ataques, defensas y velocidad crecen con el nivel, sin monedas.</p>
+      <div id="training-perks" class="upg"></div>
+    </div>
     <button id="training-play" class="btn gold hidden">Empezar partida</button>
   </div>
 </section>
@@ -681,7 +718,7 @@
       </div>
       <div id="progress-summary" class="training-summary"></div>
       <div id="progress-unlocks" class="progress-unlocks hidden"></div>
-      <p class="sub progress-note">Progreso permanente: movimientos y evoluciones.</p>
+      <p class="sub progress-note">Progreso permanente: estadísticas, movimientos y evoluciones.</p>
     </div>
     <footer class="results-actions">
       <button id="progress-back" class="btn">Volver a resultados</button>
@@ -691,8 +728,8 @@
 </section>
 
 <script defer src="js/data/learnsets.js?v=evolution-1"></script>
-<script defer src="js/training.js?v=combined-1"></script>
-<script defer src="js/town.js?v=town-5"></script>
+<script defer src="js/training.js?v=training-hub-1"></script>
+<script defer src="js/town.js?v=town-6"></script>
 <script defer src="js/app.min.js?v=ceb86d3775"></script>
 </body>
 </html>

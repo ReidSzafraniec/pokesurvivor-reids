@@ -103,9 +103,9 @@ El **Ranking** se consulta en un tablón junto a la plaza. Para preparar una
 **Expedición**, sigue el camino que sale del pueblo hacia el norte y usa el botón
 de interacción: caminar hasta la salida no abre la preparación ni empieza una
 partida automáticamente. Se conserva la preparación de movimientos existente.
-No hay una casa separada de **Mejoras**; la consolidación de sus menús no forma
-parte del cambio del pueblo. Los edificios y el tablón abren las pantallas de
-siempre, sin interiores.
+No hay una casa separada de **Mejoras**; sus opciones están integradas en
+**Entrenamiento** junto con los movimientos. Los edificios, el tablón y la cabina
+abren las pantallas existentes, sin interiores.
 
 Muévete con **WASD o las flechas** y pulsa **E o Espacio** cerca de una puerta,
 el tablón, la cabina o la salida norte para interactuar. El panel de interacción
@@ -134,12 +134,29 @@ no se consiguen, mejoran ni evolucionan ataques con las cartas de nivel.
 El **nivel permanente de Pokémon** empieza en 1 y llega hasta 100. Solo gana XP
 al terminar una partida (también al salir desde la pausa), según el tiempo
 sobrevivido y los Pokémon derrotados, con un extra por jefes. Desbloquea movimientos
-y evoluciones a sus niveles oficiales; no añade otra escala permanente de
-estadísticas. La XP de las esferas y sus multiplicadores solo afectan al nivel
-temporal. Se conserva toda la XP permanente que ya tenías.
+y evoluciones a sus niveles oficiales y aumenta las estadísticas iniciales.
+Del nivel 1 al 100, HP, Ataque, Ataque Especial, Defensa y Defensa Especial
+crecen de forma lineal hasta +50%; Velocidad, hasta +15%. La naturaleza aplica
+una sola vez su +10% y -10% habituales, sin IV ni EV. Se usan estadísticas
+adaptadas al juego de supervivencia, no la fórmula oficial de estadísticas.
+La XP de las esferas y los multiplicadores temporales solo afectan al nivel
+de la partida. Se conserva toda la XP permanente que ya tenías.
+
+**Entrenamiento** reúne estadísticas, naturaleza, habilidad, movimientos y
+compras en una pantalla, con pestañas **Movimientos** y **Ventajas**.
+Las Pokémonedas compran recarga, regeneración, recogida, aprendizaje,
+monedas, críticos y cambios de cartas; ya no compran HP, ataques, defensas
+ni velocidad. Las antiguas compras de esas estadísticas no tienen efecto
+y no se reembolsan. Mentas y Cápsulas siguen consumiendo objetos de la mochila.
+**Aprendizaje** da +5% por rango (hasta ocho) tanto a la XP de partida como a
+los puntos de rendimiento que se convierten en XP permanente. Se toma el rango
+comprado al empezar la partida; Huevo Suerte y los demás multiplicadores
+temporales no aumentan la XP permanente.
 
 El rendimiento se convierte primero en
 `floor(segundos / 2 + sqrt(segundos × derrotados) / 4 + jefes × 15)` puntos.
+Después se aplica el multiplicador comprado de Aprendizaje, antes de convertir
+esos puntos en XP.
 El extra por derrotados tiene rendimientos decrecientes para que las grandes
 hordas no disparen los niveles; dividir una partida en varias no aumenta sus
 puntos totales para el mismo rendimiento. Los puntos se convierten en XP usando

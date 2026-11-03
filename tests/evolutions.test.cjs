@@ -177,7 +177,8 @@ function bundledGacha(createModel = create) {
     _0x599208: {
       DEX: Object.keys(data.pokemon).map(Number).map(dex => ({
         dex, gen: [151, 251, 386, 493, 649, 721, 809, 905, 1025].findIndex(max => dex <= max) + 1,
-        types: ['ghost'], rarity: dex % 5 + 1, bst: dex
+        types: ['ghost'], rarity: dex % 5 + 1, bst: dex,
+        hp: 100, pa: 1, sa: 1, atk: 1, df: 75, sd: 75, spd: 100
       })),
       SPRITE_META: Object.fromEntries(Object.keys(data.pokemon).map(id => [id, {}])),
       Sprites: { hasShiny: () => true }, Halloween: { on: true },
@@ -192,6 +193,7 @@ function bundledGacha(createModel = create) {
         if (context._0x599208.UI.$) context._0x599208.UI.$('btn-again').onclick = done;
       } },
       UI: {
+        refreshCoins() {},
         show(id) {
           this.screen = id;
           this.hideAll();
@@ -201,7 +203,7 @@ function bundledGacha(createModel = create) {
           for (const id of ['scr-over', 'scr-evolution', 'scr-menu']) this.$?.(id).classList.add('hidden');
         }
       },
-      MenuUI: { open() {} }, Flow: {}
+      MenuUI: { init() {}, open() {} }, Flow: {}
     }
   };
   vm.createContext(context);
@@ -209,6 +211,17 @@ function bundledGacha(createModel = create) {
     source.slice(source.lastIndexOf('function a0_0x48f4()'));
   vm.runInContext(bootstrap, context, { timeout: 3000 });
   context._0x48be02 = context.a0_0x422d;
+  const game = context._0x599208;
+  game.DEX_BY = Object.fromEntries(game.DEX.map(mon => [mon.dex, mon]));
+  const natureStart = source.indexOf("_0x599208['NATURES']="),
+    natureEnd = source.indexOf('_0x599208[_0x48be02(0x5e2)]', natureStart);
+  vm.runInContext(source.slice(natureStart, natureEnd), context, { timeout: 3000 });
+  const statsStart = source.indexOf("_0x599208['Stats']="),
+    statsEnd = source.indexOf(",_0x599208['AbilityFX']=", statsStart);
+  vm.runInContext(source.slice(statsStart, statsEnd), context, { timeout: 3000 });
+  const upgradesStart = source.indexOf("_0x599208['Upgrades']="),
+    upgradesEnd = source.indexOf(",_0x599208['Items']=", upgradesStart);
+  vm.runInContext(source.slice(upgradesStart, upgradesEnd), context, { timeout: 3000 });
   const module = source.match(/_0x599208\['Gacha'\]=.*?(?=,_0x599208\['Interact'\]=)/)[0];
   vm.runInContext(module, context, { timeout: 3000 });
   model.install(context._0x599208);
@@ -305,8 +318,11 @@ function animationFixture() {
   let nextTimer = 1;
   function element(id) {
     const classes = new Set(['hidden']);
+    const attributes = new Map();
     return {
-      id, children: [],
+      get id() { return id; },
+      set id(value) { id = value; elements.set(value, this); },
+      children: [],
       classList: {
         add: value => classes.add(value), remove: value => classes.delete(value),
         contains: value => classes.has(value),
@@ -315,13 +331,15 @@ function animationFixture() {
       append(...children) { this.children.push(...children); },
       prepend(...children) { this.children.unshift(...children); },
       replaceChildren(...children) { this.children = children; },
-      setAttribute() {},
+      insertAdjacentHTML() {},
+      setAttribute(name, value) { attributes.set(name, String(value)); },
+      getAttribute(name) { return attributes.get(name); },
       focus() { document.activeElement = this; }
     };
   }
   const document = {
     activeElement: null,
-    querySelector: () => null,
+    querySelector: selector => selector === '#scr-lobby .box' ? document.getElementById('lobby-box') : null,
     createElement: () => element(),
     getElementById(id) {
       if (!elements.has(id)) elements.set(id, element(id));
@@ -347,6 +365,8 @@ function animationFixture() {
   game.Icons = { html: () => '' };
   game.Social = { room: null };
   game.Skins = { worn: () => null };
+  game.Shop = { count: id => game.DB.save.bag?.[id] || 0 };
+  game.AbilityFX = { of: () => ({ d: 'Ability effect' }) };
   game.UI.sprite = () => {};
   game.UI.$ = id => document.getElementById(id);
   game.UI.isOpen = id => game.UI.screen === id;
@@ -354,6 +374,109 @@ function animationFixture() {
   atLevel(model, game.DB.save, 4, 16);
   return { ...fixture, document, timers };
 }
+
+test('unified Training keeps selection across keyboard tabs and displays level-grown stats', () => {
+  const { model, game, document } = animationFixture();
+  game.Game.state = 'ui';
+  game.DB.save.coins = 1000;
+  game.MenuUI.init();
+  model.open(4);
+  const moves = document.getElementById('training-tab-moves'),
+    perks = document.getElementById('training-tab-perks');
+  assert.equal(moves.getAttribute('aria-selected'), 'true');
+  assert.equal(perks.getAttribute('aria-selected'), 'false');
+  perks.onclick();
+  assert.equal(perks.getAttribute('aria-selected'), 'true');
+  assert.equal(document.getElementById('training-mon').value, 4);
+  assert(document.getElementById('training-panel-moves').classList.contains('hidden'));
+  assert(!document.getElementById('training-panel-perks').classList.contains('hidden'));
+  assert.match(document.getElementById('training-stats').innerHTML, /HP/);
+  assert.match(document.getElementById('training-coins').textContent, /1,?000/);
+  const rows = document.getElementById('training-perks').children;
+  assert.equal(rows.length, 7);
+  assert.match(document.getElementById('training-perk-xp').textContent, /100/);
+  document.getElementById('training-perk-xp').onclick();
+  assert.equal(game.DB.save.coins, 900);
+  assert.equal(game.DB.save.pupg[4].xp, 1);
+  assert.equal(perks.getAttribute('aria-selected'), 'true');
+  let prevented = false;
+  perks.onkeydown({ key: 'Home', preventDefault() { prevented = true; } });
+  assert(prevented);
+  assert.equal(document.activeElement, moves);
+  assert.equal(moves.getAttribute('aria-selected'), 'true');
+  game.Flow.play();
+  assert.equal(moves.getAttribute('aria-selected'), 'true');
+  assert.equal(document.getElementById('training-mon').disabled, true);
+  assert(!document.getElementById('training-play').classList.contains('hidden'));
+});
+
+test('Training refreshes unavailable selection on sync and legacy upgrades open the same page', () => {
+  const { model, game, document } = animationFixture();
+  game.Game.state = 'ui';
+  game.MenuUI.init();
+  game.DB.save.owned[7] = { at: 1 };
+  game.DB.save.partner = 7;
+  model.open(4);
+  delete game.DB.save.owned[4];
+  game.DB.notify();
+  assert.equal(document.getElementById('training-mon').value, 7);
+  game.UI.show('scr-upgrades', true);
+  assert.equal(game.UI.screen, 'scr-training');
+  assert.equal(document.getElementById('training-tab-perks').getAttribute('aria-selected'), 'true');
+});
+
+test('Training returns to the cooperative lobby only when opened from that lobby', () => {
+  const { model, game, document } = animationFixture();
+  game.Game.state = 'ui';
+  game.Social.room = {};
+  let lobby = 0, menu = 0;
+  game.LobbyUI = { open() { lobby++; } };
+  game.MenuUI.open = () => { menu++; };
+  game.MenuUI.init();
+  game.UI.screen = 'scr-lobby';
+  model.open(4);
+  document.getElementById('training-back').onclick();
+  assert.equal(lobby, 1);
+  assert.equal(menu, 0);
+  game.UI.screen = 'scr-menu';
+  model.open(4);
+  document.getElementById('training-back').onclick();
+  assert.equal(lobby, 1);
+  assert.equal(menu, 1);
+});
+
+test('evolution recalculates grown stats from the evolved species and preserves utility ranks and nature', () => {
+  const { model, game } = animationFixture();
+  const save = game.DB.save;
+  Object.assign(game.DEX_BY[5], { hp: 140, df: 90 });
+  save.pupg = { 4: { xp: 3, crit: 2, hp: 10 } };
+  game.Mons.setNature(4, 'hasty');
+  const before = model.statsFor(4);
+  model.evolve(save, 4, 5, 100);
+  const after = model.statsFor(5), factor = 1 + 0.5 * (16 - 1) / 99;
+  assert.equal(model.state(save, 5).level, 16);
+  assert.equal(after.hp, game.DEX_BY[5].hp * factor);
+  assert.equal(after.df, game.DEX_BY[5].df * 0.9 * factor);
+  assert(after.hp > before.hp);
+  assert.equal(game.Mons.natureOf(5).id, 'hasty');
+  assert.equal(model.learningMultiplier(save, 5), 1.15);
+  assert.equal(game.Upgrades.perks(save.pupg[5]).hp, 0);
+  assert.equal(game.Upgrades.perks(save.pupg[5]).crit, 0.06);
+});
+
+test('both game pages expose one Training destination and matching accessible tab panels', () => {
+  for (const page of ['../index.html', '../en/index.html']) {
+    const source = fs.readFileSync(require.resolve(page), 'utf8');
+    assert(!source.includes('data-go="upgrades"'));
+    for (const id of ['training-stats', 'training-nature', 'training-ability',
+      'training-tab-moves', 'training-tab-perks', 'training-panel-moves', 'training-panel-perks']) {
+      assert(source.includes('id="' + id + '"'), page + ': ' + id);
+    }
+    assert(source.includes('role="tablist"'));
+    assert(source.includes('aria-controls="training-panel-perks"'));
+    assert(source.includes('aria-labelledby="training-tab-moves"'));
+  }
+});
 
 test('eligible Pokemon do not trigger evolution from menus, training or match preparation', () => {
   const { model, game, timers } = animationFixture();

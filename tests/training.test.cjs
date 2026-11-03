@@ -336,19 +336,21 @@ test('temporary rewards are only stats, honor caps, and leave moves unchanged', 
 function installFixture() {
   const model = create(data), save = saveFor(25, 129), events = [];
   const context = {
-    DEX: [{ dex: 25 }, { dex: 129 }],
+    DEX: [25, 129].map(dex => ({
+      dex, hp: 100, pa: 1.2, sa: 0.8, atk: 1.2, df: 200, sd: 50, spd: 100, types: ['normal']
+    })),
     Moves: { BY_ID: Object.fromEntries(Object.keys(data.moves).map(id => [
       id, { id, name: id, kind: id === 'tackle' ? 'melee' : 'shot', cd: 0.5 }
     ])) },
     Mons: {},
     I18n: { add() {} },
     DB: { save, onSync() {} },
-    Upgrades: {
-      LIST: ['hp', 'moves', 'start', 'start2', 'ban'].map(id => ({ id })),
-      perks: () => ({ hp: 20, startMoves: 2, bans: 3 })
-    },
+    Upgrades: {},
     LevelUp: { STATS: [] },
-    U: { pickN: (items, count) => items.slice(0, count) },
+    U: {
+      pickN: (items, count) => items.slice(0, count),
+      clamp: (value, low, high) => Math.max(low, Math.min(high, value))
+    },
     Progress: {
       event(name, details) {
         events.push({ name, details, xp: model.state(save, 25).xp });
@@ -356,14 +358,217 @@ function installFixture() {
       }
     },
     RunUI: { showOver() {} },
-    UI: { show() {} },
+    UI: { show() {}, refreshCoins() {} },
     MenuUI: { init() {} },
     Flow: { play() {} },
     Game: {}
   };
+  context.DEX_BY = Object.fromEntries(context.DEX.map(mon => [mon.dex, mon]));
+  loadNativeStats(context);
   model.install(context);
   return { model, context, events, save };
 }
+
+function loadNativeStats(context) {
+  const source = fs.readFileSync(require.resolve('../js/app.min.js'), 'utf8');
+  const runtime = vm.createContext({ _0x599208: context });
+  vm.runInContext(source.slice(0, source.indexOf('const a0_0xc9496a=')) +
+    source.slice(source.lastIndexOf('function a0_0x48f4()')), runtime, { timeout: 3000 });
+  runtime._0x48be02 = runtime.a0_0x422d;
+  for (const [first, next] of [['NATURES', 'ABIL'], ['Stats', 'AbilityFX'], ['Upgrades', 'Items']]) {
+    const start = source.indexOf("_0x599208['" + first + "']="),
+      end = next === 'ABIL' ? source.indexOf('_0x599208[_0x48be02(0x5e2)]', start)
+        : source.indexOf(",_0x599208['" + next + "']=", start);
+    assert(start > 0 && end > start);
+    vm.runInContext(source.slice(start, end), runtime, { timeout: 3000 });
+  }
+}
+
+test('permanent stats grow to exact endpoints and nature applies once without changing species', () => {
+  const { model, context, save } = installFixture();
+  save.pnat = { 25: ['hasty', 1], 129: ['hardy', 1] };
+  const original = JSON.stringify(context.DEX_BY);
+  const first = model.statsFor(25);
+  assert.equal(first.hp, 100);
+  assert.equal(first.df, 180);
+  assert.equal(first.spd, 110.00000000000001);
+  for (const level of [2, 50, 100]) {
+    atLevel(save, 25, level);
+    const stats = context.Mons.monFor(25), fraction = (level - 1) / 99;
+    for (const key of ['hp', 'pa', 'sa', 'df', 'sd']) {
+      assert.equal(stats[key], first[key] * (1 + 0.5 * fraction), key);
+    }
+    assert.equal(stats.spd, first.spd * (1 + 0.15 * fraction));
+    assert.equal(stats.atk, Math.max(stats.pa, stats.sa));
+    assert.deepEqual(model.statsFor(25), stats);
+  }
+  assert.equal(JSON.stringify(context.DEX_BY), original);
+  const neutral = model.statsFor(129);
+  for (const key of ['hp', 'pa', 'sa', 'df', 'sd', 'spd']) {
+    assert.equal(neutral[key], context.DEX_BY[129][key]);
+  }
+  delete save.owned[129];
+  assert.equal(context.Mons.monFor(129).hp, 100);
+});
+
+test('native player damage and durability use permanent stats beyond the old defense clamp', () => {
+  const { model, context, save } = installFixture();
+  save.pnat = { 25: ['hardy', 1] };
+  loadNativePlayer(context);
+  const baseline = context.Mons.monFor(25);
+  const low = new context.Player(baseline);
+  const physical = low.atkFor({ cat: 'physical', type: 'ghost' });
+  const special = low.atkFor({ cat: 'special', type: 'ghost' });
+  const incoming = ['physical', 'special'].map(cat => context.Stats.taken(baseline, cat));
+  atLevel(save, 25, 100);
+  const high = new context.Player(context.Mons.monFor(25));
+  assert.equal(high.maxHp, low.maxHp * 1.5);
+  assert.equal(high.baseSpd, low.baseSpd * 1.15);
+  assert.equal(high.atkFor({ cat: 'physical', type: 'ghost' }), physical * 1.5);
+  assert(Math.abs(high.atkFor({ cat: 'special', type: 'ghost' }) - special * 1.5) < 1e-12);
+  for (const [index, cat] of ['physical', 'special'].entries()) {
+    assert.equal(context.Stats.taken(high.mon, cat), incoming[index] / Math.pow(1.5, 0.35));
+    assert(context.Stats.taken(high.mon, cat) < incoming[index]);
+  }
+  assert.equal(context.Stats.taken(context.DEX_BY[25], 'physical'), incoming[0]);
+  assert.equal(context.Stats.taken(high.mon, null), 1);
+  assert.equal(context.Stats.taken(null, 'physical'), 1);
+  high.maxHp += 20;
+  assert.equal(high.maxHp, 170);
+  assert.equal(new context.Player(context.Mons.monFor(25)).maxHp, 150);
+});
+
+test('only utility perks remain purchasable and old core-stat ranks are inert', () => {
+  const { context } = installFixture();
+  assert.deepEqual(Array.from(context.Upgrades.LIST, perk => perk.id),
+    ['cd', 'regen', 'magnet', 'xp', 'coins', 'crit', 'reroll']);
+  const old = { hp: 10, atk: 10, spd: 8, def: 8, xp: 8, crit: 10, cd: 8 };
+  const perks = context.Upgrades.perks(old);
+  assert.equal(perks.hp, 0);
+  assert.equal(perks.atkMul, 1);
+  assert.equal(perks.spdMul, 1);
+  assert.equal(perks.dmgReduce, 0);
+  assert.equal(perks.xpMul, 1.4);
+  assert.equal(perks.crit, 0.3);
+  assert.equal(perks.cdMul, 0.76);
+  assert.equal(context.Upgrades.cost('xp', 0), 100);
+  assert.equal(context.Upgrades.BY.xp.max, 8);
+  assert.equal(old.hp, 10);
+});
+
+test('learning speed boosts both XP channels and is snapshotted without item multipliers', () => {
+  for (const rank of [0, 1, 8, 99]) {
+    const { model, context, save } = installFixture();
+    save.pupg = { 25: { xp: rank } };
+    const multiplier = 1 + 0.05 * Math.min(rank, 8);
+    assert.equal(model.learningMultiplier(save, 25), multiplier);
+    assert.equal(context.Upgrades.perks(save.pupg[25]).xpMul, multiplier);
+    loadNativePlayer(context);
+    const player = new context.Player(context.Mons.monFor(25), context.Upgrades.perks(save.pupg[25]));
+    context.Game.player = player;
+    player.kills = 150;
+    player.bosses = 2;
+    model.preparePlayer(player);
+    const xp = player.xp;
+    player.gainXp(1);
+    assert.equal(player.xp - xp, multiplier);
+    player.xpMul *= 10;
+    save.pupg[25].xp = 0;
+    context.Progress.event('runEnd', { time: 300 });
+    const expected = saveFor(25);
+    training.award(expected, 25, { time: 300, kills: 150, bosses: 2 }, multiplier);
+    assert.equal(model.state(save, 25).xp, training.state(expected, 25).xp);
+    const earlyRate = Math.max(1, model.xpAt(25, 10) / 600);
+    assert.equal(model.state(save, 25).xp, Math.floor(233 * multiplier * earlyRate));
+    context.Progress.event('runEnd', { time: 300 });
+    assert.equal(model.state(save, 25).xp, training.state(expected, 25).xp);
+  }
+});
+
+test('perk purchases enforce ownership, allowed IDs, costs, caps and between-run access', () => {
+  const { model, context, save } = installFixture();
+  context.Game.state = 'ui';
+  save.coins = 1000;
+  context.DB.guest = true;
+  let chromeCoins;
+  context.UI.refreshCoins = () => { chromeCoins = save.coins; };
+  const before = model.state(save, 25).xp;
+  assert(model.buyPerk(25, 'xp'));
+  assert.equal(save.coins, 900);
+  assert.equal(chromeCoins, 900);
+  assert.equal(save.pupg[25].xp, 1);
+  assert.equal(model.state(save, 25).xp, before);
+  for (const id of ['hp', 'atk', 'spd', 'def', 'moves', 'nope']) {
+    assert.throws(() => model.buyPerk(25, id), /utility perk/);
+  }
+  assert.throws(() => model.buyPerk(4, 'xp'), /owned/);
+  save.coins = 0;
+  assert.throws(() => model.buyPerk(25, 'xp'), /coins/);
+  assert.equal(save.pupg[25].xp, 1);
+  save.pupg[25].xp = 8;
+  assert.throws(() => model.buyPerk(25, 'xp'), /maximum/);
+  assert.equal(save.coins, 0);
+  context.Game.state = 'playing';
+  assert.throws(() => model.buyPerk(25, 'crit'), /between/);
+});
+
+test('Training nature and ability changes consume only the required owned item', () => {
+  const { model, context, save } = installFixture();
+  context.Game.state = 'ui';
+  context.DB.guest = true;
+  save.bag = { mint: 1, cap: 1, caph: 1 };
+  context.DEX_ABIL = { 25: ['static', 'lightning-rod', 'surge-surfer'] };
+  save.pabil = { 25: [0, 1] };
+  context.Shop = {
+    count: id => save.bag[id] || 0,
+    take(id) {
+      if (!save.bag[id]) return false;
+      save.bag[id]--;
+      return true;
+    }
+  };
+  assert.throws(() => model.useNature(25, 'missing'), /nature/);
+  assert.equal(save.bag.mint, 1);
+  assert(model.useNature(25, 'hasty'));
+  assert.equal(save.bag.mint, 0);
+  assert.equal(context.Mons.natureOf(25).id, 'hasty');
+  assert.throws(() => model.useNature(25, 'hardy'), /item/);
+  assert.throws(() => model.useAbility(25, 2, 'cap'), /ability/);
+  assert.equal(save.bag.cap, 1);
+  assert(model.useAbility(25, 1, 'cap'));
+  assert.equal(save.bag.cap, 0);
+  assert.equal(context.Mons.abilityOf(25).slot, 1);
+  assert(model.useAbility(25, 2, 'caph'));
+  assert.equal(save.bag.caph, 0);
+  assert.equal(context.Mons.abilityOf(25).slot, 2);
+  context.Game.state = 'playing';
+  assert.throws(() => model.useNature(25, 'hardy'), /between/);
+});
+
+test('purchased learning speed crosses thresholds and caps XP without rounding the multiplier early', () => {
+  const save = saveFor(25);
+  save.pupg = { 25: { xp: 8 } };
+  atLevel(save, 25, 99);
+  save.training[25].xp = training.xpAt(25, 100) - 1;
+  assert.equal(training.award(save, 25, { time: 2, kills: 0, bosses: 0 }).after.level, 100);
+  assert.equal(training.award(save, 25, { time: 10000, kills: 1000, bosses: 100 }).gained, 0);
+  for (const multiplier of [NaN, Infinity, 0, -1, 1.5]) {
+    assert.throws(() => training.award(save, 25, { time: 1, kills: 0, bosses: 0 }, multiplier),
+      /learning multiplier/);
+  }
+});
+
+test('a failed perk save reports the persistence error rather than claiming success', () => {
+  const { model, context, save } = installFixture();
+  context.Game.state = 'ui';
+  save.coins = 100;
+  let warning;
+  context.DB.commit = () => false;
+  context.UI.toast = message => { warning = message; };
+  context.T = text => text;
+  assert.equal(model.buyPerk(25, 'xp'), false);
+  assert.match(warning, /No se pudo guardar/);
+});
 
 function makePlayer(dex) {
   return {
@@ -486,8 +691,9 @@ test('integration equips the exact selected four without changing the temporary 
   assert.equal(player.active, 0);
   assert.deepEqual(player.bind, {});
   assert.equal(context.startMoveOf(25), 'thunderbolt');
-  assert.deepEqual(context.Upgrades.LIST.map(upgrade => upgrade.id), ['hp']);
-  assert.deepEqual(context.Upgrades.perks({}), { hp: 20, startMoves: 1, bans: 0 });
+  assert(!context.Upgrades.LIST.some(upgrade => upgrade.id === 'hp'));
+  assert.equal(context.Upgrades.perks({}).startMoves, 1);
+  assert.equal(context.Upgrades.perks({}).bans, 0);
   assert.deepEqual(context.Moves.poolFor({ dex: 7 }), ['tackle']);
   assert(!Object.hasOwn(save.training, 7));
   save.ptm[25] = ['thunderbolt', 'hydro-pump'];
