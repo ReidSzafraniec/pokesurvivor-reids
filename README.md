@@ -97,14 +97,28 @@ no guardan progreso al cerrar o recargar.
 
 Al entrar, después de elegir compañero, llegas a **Villa Compañera**: un pueblo
 sin combate que recorres con tu Pokémon seleccionado, en su versión normal o
-shiny. Cada una de las diez opciones del menú tiene su edificio, incluida la
-casa de **Expediciones**, que conserva la preparación de movimientos antes de
-empezar una partida. Las puertas abren las pantallas existentes, sin interiores.
-Junto al estanque hay una pequeña plaza adoquinada con un banco, conectada a
-los caminos sin tapar el cruce.
+shiny. El pueblo tiene siete edificios con tejados y fachadas diferentes:
+un gimnasio rotulado **Entrenamiento**, un centro rotulado **Pokémon** para la colección,
+**Ajustes**, la **Tienda** de Kecleon, **Mochila**, **Gacha** y **Misiones**.
+El Centro Pokémon ocupa la antigua parcela de Amigos al oeste de la plaza;
+Misiones está en la parcela del noreste. **Amigos** se abre desde la cabina de
+teléfono situada en el césped a la derecha del tablón del Ranking.
+Los caminos conectan una plaza adoquinada, un estanque, bancos y jardines,
+rodeados de árboles; las farolas están alineadas fuera de los caminos.
 
-Muévete con **WASD o las flechas** y pulsa **E o Espacio** cerca de una puerta
-para entrar. En móvil horizontal hay una cruceta y un botón para entrar.
+El **Ranking** se consulta en un tablón junto a la plaza. Para preparar una
+**Expedición**, sigue el camino que sale del pueblo hacia el norte y usa el botón
+de interacción: caminar hasta la salida no abre la preparación ni empieza una
+partida automáticamente. Se conserva la preparación de movimientos existente.
+No hay una casa separada de **Mejoras**; sus opciones están integradas en
+**Entrenamiento** junto con los movimientos. Los edificios, el tablón y la cabina
+abren las pantallas existentes, sin interiores.
+
+Muévete con **WASD o las flechas** y pulsa **E o Espacio** cerca de una puerta,
+el tablón, la cabina o la salida norte para interactuar. El panel de interacción
+solo aparece al situarte directamente delante del destino; no se activa desde
+un lateral ni por detrás. En móvil horizontal hay una cruceta y el mismo botón
+contextual.
 **M, Esc o Menú** abren el menú de siempre sin tener que caminar; **Volver al
 pueblo** lo cierra. Al cerrar una pantalla abierta desde una puerta, vuelves al
 mismo sitio; si la abriste desde el menú, vuelves a la lista.
