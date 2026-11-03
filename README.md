@@ -93,6 +93,8 @@ sin combate que recorres con tu Pokémon seleccionado, en su versión normal o
 shiny. Cada una de las once opciones del menú tiene su edificio, incluida la
 casa de **Expediciones**, que conserva la preparación de movimientos antes de
 empezar una partida. Las puertas abren las pantallas existentes, sin interiores.
+Junto al estanque hay una pequeña plaza adoquinada con un banco, conectada a
+los caminos sin tapar el cruce.
 
 Muévete con **WASD o las flechas** y pulsa **E o Espacio** cerca de una puerta
 para entrar. En móvil horizontal hay una cruceta y un botón para entrar.

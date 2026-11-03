@@ -1,7 +1,20 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
+const vm = require('node:vm');
 const town = require('../js/town.js');
+
+function loadSpriteDirection() {
+  const source = fs.readFileSync(require.resolve('../js/app.min.js'), 'utf8');
+  const runtime = vm.createContext({});
+  const bootstrap = source.slice(0, source.indexOf('const a0_0xc9496a=')) +
+    source.slice(source.lastIndexOf('function a0_0x48f4()'));
+  vm.runInContext(bootstrap, runtime, { timeout: 3000 });
+  const match = /'dirFromAngle':(function\([^)]*\)\{[^}]*\})/.exec(source);
+  assert(match, 'Native sprite direction helper must exist');
+  return vm.runInContext('(' + match[1] + ')', runtime, { timeout: 3000 });
+}
+const spriteDirection = loadSpriteDirection();
 
 test('all eleven menu buildings have reachable, non-overlapping door approaches', () => {
   assert.equal(town.BUILDINGS.length, 11);
@@ -54,8 +67,11 @@ test('swept movement cannot enter any building, pond, or town boundary', () => {
 });
 
 test('all eight walk directions use the existing sprite sheet orientation', () => {
-  [[0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1], [1, -1], [1, 0], [1, 1]]
-    .forEach(([x, y], dir) => assert.equal(town.direction(x, y), dir));
+  [[0, 1], [1, 1], [1, 0], [1, -1], [0, -1], [-1, -1], [-1, 0], [-1, 1]]
+    .forEach(([x, y], dir) => {
+      assert.equal(spriteDirection(Math.atan2(y, x)), dir);
+      assert.equal(town.direction(x, y), dir, `Facing ${x},${y}`);
+    });
 });
 
 test('invalid town movement is rejected explicitly', () => {
@@ -69,6 +85,8 @@ function fixture() {
   const elements = new Map(), frames = new Map(), listeners = new Map(), sync = [];
   let nextFrame = 0, observer;
   const brush = new Proxy({}, { get: (target, key) => target[key] || (() => {}), set: (target, key, value) => (target[key] = value, true) });
+  const painted = [];
+  brush.fillRect = (x, y, w, h) => painted.push({ color: brush.fillStyle, x, y, w, h });
   function element(id, hidden = true) {
     const classes = new Set(hidden ? ['hidden'] : []), events = new Map();
     const node = {
@@ -186,9 +204,74 @@ function fixture() {
     listeners.get(type)(event);
     return event;
   }
-  return { game, host, elements, frames, sync, avatars, drawn, actions, advance, key, pads,
+  return { game, host, elements, frames, sync, avatars, drawn, painted, actions, advance, key, pads,
     observe: () => observer(), visible: id => !elements.get(id).classList.contains('hidden') };
 }
+
+test('keyboard and touch movement face the same direction as native combat sprites', () => {
+  for (const [codes, x, y] of [
+    [['ArrowDown'], 0, 1], [['ArrowDown', 'ArrowRight'], 1, 1],
+    [['ArrowRight'], 1, 0], [['ArrowUp', 'ArrowRight'], 1, -1],
+    [['ArrowUp'], 0, -1], [['ArrowUp', 'ArrowLeft'], -1, -1],
+    [['ArrowLeft'], -1, 0], [['ArrowDown', 'ArrowLeft'], -1, 1]
+  ]) {
+    for (const touch of [false, true]) {
+      const f = fixture();
+      f.game.Flow.goMenu();
+      f.advance(0);
+      codes.forEach((code, index) => {
+        if (touch) {
+          f.pads.find(pad => pad.dataset.townMove === code)
+            .dispatch('pointerdown', { pointerId: index, preventDefault() {} });
+        } else f.key('keydown', code);
+      });
+      f.advance(100);
+      const avatar = f.avatars.at(-1), expected = spriteDirection(Math.atan2(y, x));
+      assert.equal(avatar.animation, 'Walk');
+      assert.equal(avatar.dir, expected, `${touch ? 'Touch' : 'Keyboard'} ${codes}`);
+      codes.forEach((code, index) => {
+        if (touch) {
+          f.pads.find(pad => pad.dataset.townMove === code)
+            .dispatch('pointerup', { pointerId: index });
+        } else f.key('keyup', code);
+      });
+      f.advance(200);
+      assert.equal(avatar.animation, 'Idle');
+      assert.equal(avatar.dir, expected, 'Stopping retains the correct facing');
+    }
+  }
+});
+
+test('pond plaza stays west of the north-south path with open street connections', () => {
+  const f = fixture();
+  f.game.Flow.goMenu();
+  const plaza = f.painted.find(r => r.x === 344 && r.y === 496);
+  assert(plaza);
+  assert.equal(plaza.x + plaza.w, 536, 'Paving must not cover the north-south path');
+  assert.equal(plaza.h, 112);
+  for (const x of [344, 528]) {
+    assert(f.painted.some(r => r.x === x && r.y === 532 && r.w >= 8 && r.h === 40),
+      'Street must connect through the plaza border');
+  }
+  for (let y = plaza.y; y <= plaza.y + plaza.h; y += 8) assert(town.walkable(552, y));
+});
+
+test('plaza paving has staggered joints and clips every tile to its inset border', () => {
+  const f = fixture();
+  f.game.Flow.goMenu();
+  const rows = Array.from({ length: 6 }, (_, row) =>
+    f.painted.filter(r => r.y === 505 + row * 16 && r.h === 14 && r.x >= 353 && r.x < 527));
+  for (const row of rows) {
+    assert(row.length >= 6, 'Every row must contain separate paving stones');
+    assert(row.every(r => r.x + r.w <= 527), 'No stone may overhang the plaza');
+    for (let i = 1; i < row.length; i++) {
+      assert.equal(row[i].x - (row[i - 1].x + row[i - 1].w), 2, 'Visible mortar joints');
+    }
+  }
+  const joints = row => row.map(r => r.x + r.w);
+  assert.notDeepEqual(joints(rows[0]), joints(rows[1]), 'Adjacent rows must be staggered');
+  assert.deepEqual(joints(rows[0]), joints(rows[2]), 'Stagger repeats every two rows');
+});
 
 test('home defaults to town; private back callbacks and shortcut menus keep their return destinations', () => {
   const f = fixture();

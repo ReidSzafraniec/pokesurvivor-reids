@@ -54,7 +54,7 @@
   }
 
   function direction(x, y) {
-    return (Math.round((Math.atan2(y, x) - Math.PI / 2) / (Math.PI / 4)) + 8) % 8;
+    return (Math.round((Math.PI / 2 - Math.atan2(y, x)) / (Math.PI / 4)) + 8) % 8;
   }
 
   function install(game, host = window) {
@@ -213,14 +213,16 @@
         rect(brush, '#c7b27c', x - 8, 64, 48, HEIGHT - 96);
         rect(brush, '#dcc792', x - 4, 64, 40, HEIGHT - 96);
       }
-      rect(brush, '#c7b27c', 344, 496, 288, 112);
-      rect(brush, '#e1d0a6', 352, 504, 272, 96);
-      for (let y = 504; y < 600; y += 16) {
-        for (let x = 352; x < 624; x += 32) {
-          rect(brush, '#cdbd97', x + (y % 32 ? 16 : 0), y, 1, 16);
-          rect(brush, '#d7c69f', x, y, 32, 1);
+      rect(brush, '#8b927c', 344, 496, 192, 112);
+      rect(brush, '#a2ad96', 352, 504, 176, 96);
+      for (let row = 0; row < 6; row++) {
+        for (let x = 352 - (row % 2) * 16; x < 528; x += 32) {
+          const left = Math.max(x, 352), right = Math.min(x + 32, 528);
+          rect(brush, row % 2 ? '#c6cbb0' : '#d5d4ba', left + 1, 505 + row * 16, right - left - 2, 14);
         }
       }
+      rect(brush, '#dcc792', 344, 532, 8, 40);
+      rect(brush, '#dcc792', 528, 532, 16, 40);
       for (const b of BUILDINGS) {
         rect(brush, '#dcc792', b.door.x - 20, b.y + b.h, 40, 48);
         building(brush, b);
@@ -230,14 +232,20 @@
           rect(brush, '#f4d0c4', x + 4, b.y + 101, 7, 7);
         }
       }
-      rect(brush, '#a2a885', 364, 364, 168, 104);
-      rect(brush, '#527d91', 372, 372, 152, 88);
-      rect(brush, '#80b4bb', 380, 380, 136, 72);
+      rect(brush, '#a2a885', 372, 364, 152, 104);
+      rect(brush, '#a2a885', 364, 372, 168, 88);
+      rect(brush, '#527d91', 376, 372, 144, 88);
+      rect(brush, '#527d91', 372, 380, 152, 72);
+      rect(brush, '#80b4bb', 384, 380, 128, 72);
+      rect(brush, '#80b4bb', 380, 388, 136, 56);
       for (let y = 392; y < 450; y += 16) {
-        for (let x = 390; x < 510; x += 36) rect(brush, '#b5dbce', x, y, 16, 2);
+        for (let x = 390; x < 490; x += 36) rect(brush, '#b5dbce', x, y, 16, 2);
       }
-      rect(brush, '#687e58', 361, 356, 28, 12);
-      rect(brush, '#89a368', 356, 350, 28, 12);
+      for (const [x, y] of [[394, 432], [484, 400]]) {
+        rect(brush, '#5e865a', x, y, 16, 6);
+        rect(brush, '#5e865a', x + 3, y - 3, 10, 12);
+        rect(brush, '#91b975', x + 3, y, 7, 3);
+      }
       for (let x = 24; x < WIDTH; x += 48) {
         tree(brush, x, 22);
         tree(brush, x, HEIGHT - 28);
@@ -246,9 +254,13 @@
         tree(brush, 12, y);
         tree(brush, WIDTH - 12, y);
       }
-      rect(brush, '#665d49', 386, 580, 40, 5);
-      rect(brush, '#665d49', 390, 585, 4, 9);
-      rect(brush, '#665d49', 418, 585, 4, 9);
+      rect(brush, '#203e4033', 388, 590, 50, 8);
+      rect(brush, '#66503d', 390, 570, 4, 26);
+      rect(brush, '#66503d', 426, 570, 4, 26);
+      rect(brush, '#a67e4e', 386, 570, 48, 5);
+      rect(brush, '#a67e4e', 386, 578, 48, 4);
+      rect(brush, '#c79b61', 384, 584, 52, 5);
+      rect(brush, '#66503d', 384, 589, 52, 3);
     }
 
     function resize() {
