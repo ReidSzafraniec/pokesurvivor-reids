@@ -19,7 +19,7 @@ addEventListener('error', function (event) {
   var boot = document.getElementById('boot');
   var source = event.target && event.target.src || event.filename || '';
   if (!boot || boot.classList.contains('hidden') ||
-      !/(?:learnsets|training|app\.min)\.js(?:\?|$)/.test(source)) return;
+      !/(?:learnsets|training|town|app\.min)\.js(?:\?|$)/.test(source)) return;
   var spanish = window.PS_LOCALES && window.PS_LOCALES.lang === 'es';
   var message = document.createElement('p'), retry = document.createElement('button');
   message.textContent = spanish

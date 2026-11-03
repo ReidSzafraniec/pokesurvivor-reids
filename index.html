@@ -86,13 +86,30 @@
 }
 </script>
 
-<link rel="stylesheet" href="css/style.css?v=results-1">
+<link rel="stylesheet" href="css/style.css?v=town-1">
 <script src="js/core/locales.js?v=ba2ae89740"></script>
 <script src="js/noframe.js"></script>
 </head>
 <body>
 
 <canvas id="game"></canvas>
+<section id="scr-town" class="scr town hidden" aria-labelledby="town-title">
+  <canvas id="town-map" tabindex="0" aria-describedby="town-help town-nearby"></canvas>
+  <div class="town-heading">
+    <div><h1 id="town-title" data-town-text="Villa Compañera"></h1><p data-town-text="Tu próxima aventura empieza aquí."></p></div>
+    <button id="town-menu" class="btn" data-town-text="Menú"></button>
+  </div>
+  <div class="town-footer">
+    <div class="town-caption"><b id="town-partner" translate="no"></b><p id="town-help" data-town-text="WASD / flechas: moverse · E / Espacio: entrar · M / Esc: menú"></p></div>
+    <div class="town-door"><p id="town-nearby" aria-live="polite"></p><button id="town-interact" class="btn gold" disabled></button></div>
+  </div>
+  <div class="town-pad" role="group" aria-label="Movimiento">
+    <button class="btn" data-town-move="ArrowUp" data-label="Mover arriba">&#9650;</button>
+    <button class="btn" data-town-move="ArrowLeft" data-label="Mover a la izquierda">&#9664;</button>
+    <button class="btn" data-town-move="ArrowDown" data-label="Mover abajo">&#9660;</button>
+    <button class="btn" data-town-move="ArrowRight" data-label="Mover a la derecha">&#9654;</button>
+  </div>
+</section>
 <div id="rotate" class="hidden"><div class="box center"><div id="rotate-ico"></div><h2>Gira el móvil</h2><p class="sub">PokéSurvivor se juega en horizontal.</p></div></div>
 
 <section id="scr-login" class="scr hidden">
@@ -186,6 +203,7 @@
   <div class="menu-right">
     <div class="box">
       <div class="menu-list">
+        <button id="menu-town" class="menu-item hidden">Volver al pueblo</button>
         <button class="menu-item play" data-go="play">Jugar<small>Entra en la mazmorra</small></button>
         <button id="menu-training" class="menu-item">Entrenamiento<small>Niveles y cuatro movimientos</small></button>
         <button class="menu-item" data-go="dex">Pokémon<small id="menu-dex-count">Tu colección</small></button>
@@ -678,6 +696,7 @@
 
 <script defer src="js/data/learnsets.js?v=evolution-1"></script>
 <script defer src="js/training.js?v=combined-1"></script>
+<script defer src="js/town.js?v=town-1"></script>
 <script defer src="js/app.min.js?v=ceb86d3775"></script>
 </body>
 </html>

@@ -86,6 +86,27 @@ El guardado local de las cuentas vive en el `localStorage` del navegador: si
 borras los datos del sitio y no tienes copia en la nube, se pierde. Los invitados
 no guardan progreso al cerrar o recargar.
 
+## Pueblo principal
+
+Al entrar, después de elegir compañero, llegas a **Villa Compañera**: un pueblo
+sin combate que recorres con tu Pokémon seleccionado, en su versión normal o
+shiny. Cada una de las once opciones del menú tiene su edificio, incluida la
+casa de **Expediciones**, que conserva la preparación de movimientos antes de
+empezar una partida. Las puertas abren las pantallas existentes, sin interiores.
+
+Muévete con **WASD o las flechas** y pulsa **E o Espacio** cerca de una puerta
+para entrar. En móvil horizontal hay una cruceta y un botón para entrar.
+**M, Esc o Menú** abren el menú de siempre sin tener que caminar; **Volver al
+pueblo** lo cierra. Al cerrar una pantalla abierta desde una puerta, vuelves al
+mismo sitio; si la abriste desde el menú, vuelves a la lista.
+
+El pueblo no cambia tus monedas, colección, entrenamiento ni guardado. No da
+XP por caminar y la posición sólo dura durante la sesión de esa cuenta.
+Los amigos y las partidas cooperativas funcionan como antes; el pueblo no
+es una sala multijugador. Al terminar una partida individual, primero se
+mantienen los resultados, la XP permanente y las evoluciones, y después se
+vuelve al pueblo.
+
 ## Entrenamiento persistente
 
 Hay **dos niveles independientes**. El **nivel de la partida** empieza en 1,
