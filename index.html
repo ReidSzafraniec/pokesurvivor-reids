@@ -86,7 +86,7 @@
 }
 </script>
 
-<link rel="stylesheet" href="css/style.css?v=training-1">
+<link rel="stylesheet" href="css/style.css?v=evolution-1">
 <script src="js/core/locales.js?v=ba2ae89740"></script>
 <script src="js/noframe.js"></script>
 </head>
@@ -513,15 +513,31 @@
         <h3 id="training-name"></h3>
         <div id="training-progress" class="training-summary"></div>
         <p id="training-source" class="note"></p>
+        <p id="training-evolution" class="note gold"></p>
       </div>
     </div>
-    <p class="note">Tu Pokémon gana 2 XP por segundo, 3 por enemigo y 200 por jefe al terminar la partida.</p>
+    <p class="note">Ganas XP permanente al terminar, según el tiempo sobrevivido y los Pokémon derrotados, con un extra por jefes. Los primeros 10 niveles son más rápidos.</p>
     <p id="training-guest" class="note gold hidden">Modo invitado: los niveles y movimientos se pierden al salir. Crea una cuenta para guardarlos.</p>
     <p id="training-fallback" class="note gold hidden">Forcejeo es un ataque de emergencia: esta especie aún no tiene un ataque compatible desbloqueado.</p>
     <div id="training-slots" class="training-slots"></div>
     <p class="note">Se muestran los movimientos implementados, con los niveles y especies de los juegos oficiales. Las MT aprendidas también se pueden equipar.</p>
     <div id="training-moves" class="training-moves"></div>
     <button id="training-play" class="btn gold hidden">Empezar partida</button>
+  </div>
+</section>
+
+<section id="scr-evolution" class="scr dim hidden" role="dialog" aria-modal="true" aria-labelledby="evolution-title" aria-describedby="evolution-message">
+  <div class="box evolution-box center">
+    <h2 id="evolution-title">Evolución</h2>
+    <p id="evolution-message" class="gold" aria-live="polite"></p>
+    <div id="evolution-stage" class="evolution-stage">
+      <canvas id="evolution-before" width="240" height="200" aria-hidden="true"></canvas>
+      <canvas id="evolution-after" width="240" height="200" aria-hidden="true"></canvas>
+    </div>
+    <p id="evolution-level" class="note"></p>
+    <label class="evolution-option"><input id="evolution-soft" type="checkbox"> Animación suave (sin destellos)</label>
+    <button id="evolution-stop" class="btn">Detener evolución</button>
+    <button id="evolution-continue" class="btn gold hidden">Continuar</button>
   </div>
 </section>
 
@@ -545,6 +561,7 @@
 <section id="scr-gacha" class="scr dim hidden">
   <div class="box wide">
     <div class="row between"><h2>Gacha</h2><button class="btn small ghost" data-back>Volver</button></div>
+    <p class="note">El gacha solo incluye formas base. Evoluciona tus Pokémon para conseguir sus siguientes formas.</p>
     <div class="gen-tabs" id="gacha-gens"></div>
     <div class="split" style="margin-top:8px">
       <div>
@@ -578,6 +595,7 @@
 <section id="scr-levelup" class="scr dim hidden">
   <div class="box center">
     <h2><span>Nivel de la partida</span> <span id="lvl-num">2</span></h2>
+    <p class="note">Este nivel y sus mejoras se reinician en cada partida.</p>
     <p class="sub">Elige una recompensa<span class="kbd-hint"> · <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd></span></p>
     <div id="cards" class="cards"></div>
     <button id="lvl-reroll" class="btn small ghost hidden" data-sfx="none" style="margin-top:10px">Cambiar opciones (<span id="lvl-rr-n">1</span>)<span class="kbd-hint"> · <kbd>R</kbd></span></button>
@@ -627,8 +645,8 @@
   </div>
 </section>
 
-<script defer src="js/data/learnsets.js?v=training-1"></script>
-<script defer src="js/training.js?v=training-1"></script>
-<script defer src="js/app.min.js?v=fcf19e59e0"></script>
+<script defer src="js/data/learnsets.js?v=evolution-1"></script>
+<script defer src="js/training.js?v=progression-1"></script>
+<script defer src="js/app.min.js?v=ceb86d3775"></script>
 </body>
 </html>

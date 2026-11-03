@@ -1192,6 +1192,40 @@ html:lang(zh) .btn, html:lang(zh) .chip { letter-spacing: 0; }
 .training-unlock { text-align: right; white-space: nowrap; }
 .training-result { grid-column: 1 / -1; padding: 12px; border: 2px solid var(--gold); border-radius: 8px; }
 .training-result p { margin: 6px 0; }
+#scr-evolution { z-index: 80; }
+.evolution-box { width: 520px; max-width: 100%; }
+.evolution-stage { position: relative; width: 240px; height: 200px; margin: 12px auto; }
+.evolution-stage canvas { position: absolute; inset: 0; width: 240px; height: 200px; }
+#evolution-after { opacity: 0; }
+.evolution-complete #evolution-before { opacity: 0; }
+.evolution-complete #evolution-after { opacity: 1; }
+.evolution-running canvas { filter: brightness(0) invert(1); }
+.evolution-running #evolution-before { animation: evolution-before .6s steps(1, end) infinite; }
+.evolution-running #evolution-after { animation: evolution-after .6s steps(1, end) infinite; }
+.evolution-running::before {
+  content: ''; position: absolute; inset: 20px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(163,219,255,.35), transparent 70%);
+  box-shadow: 0 0 30px rgba(139,196,255,.35);
+}
+.evolution-option { display: block; margin: 12px 0; color: var(--muted); }
+.evolution-soft canvas { animation: none !important; filter: none; }
+.evolution-soft #evolution-before { opacity: 1; }
+.evolution-soft #evolution-after { opacity: 0; }
+.evolution-soft.evolution-complete #evolution-before { opacity: 0; }
+.evolution-soft.evolution-complete #evolution-after { opacity: 1; }
+@keyframes evolution-before { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0; transform: scale(.85); } }
+@keyframes evolution-after { 0%, 100% { opacity: 0; transform: scale(.85); } 50% { opacity: 1; transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) {
+  .evolution-running canvas { animation: none !important; filter: none; }
+  .evolution-running #evolution-before { opacity: 1; }
+  .evolution-running #evolution-after { opacity: 0; }
+}
+@media (max-height: 520px) {
+  .evolution-box { padding: 12px 18px; }
+  .evolution-stage { width: 168px; height: 140px; margin: 0 auto; }
+  .evolution-stage canvas { width: 168px; height: 140px; }
+  .evolution-box p, .evolution-option { margin: 6px 0; }
+}
 #training-play { display: block; margin: 14px 0 0 auto; }
 @media (max-width: 760px) {
   .training-slots { grid-template-columns: repeat(2, minmax(0, 1fr)); }

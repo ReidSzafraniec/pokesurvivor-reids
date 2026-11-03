@@ -2,11 +2,13 @@
   'use strict';
 
   const START_LEVEL = 1, MAX_LEVEL = 100, MAX_MOVES = 4;
+  const EARLY_LEVEL = 10, EARLY_POINTS = 600;
   const object = value => value !== null && typeof value === 'object' && !Array.isArray(value);
   const integer = value => Number.isSafeInteger(value) && value >= 0 ? value : 0;
 
   function create(data) {
-    let game, activeRun, selectedDex, startFromTraining = false, returnToLobby = false;
+    let game, activeRun, selectedDex, evolving, gentleEvolution;
+    let startFromTraining = false, returnToLobby = false;
 
     function species(dex) {
       if (!Object.hasOwn(data.pokemon, dex)) throw new RangeError('Unknown Pokemon: ' + dex);
@@ -33,9 +35,18 @@
       return [...new Set(taught.filter(id => species(dex).tms.includes(id)))];
     }
 
-    function eligible(save, dex, level) {
+    function inheritedMoves(dex, level, ids) {
+      const allowed = new Set();
+      for (let parent = species(dex).prevo; parent; parent = species(parent).prevo) {
+        for (const [id, at] of species(parent).moves) if (at <= level) allowed.add(id);
+        for (const id of species(parent).tms) allowed.add(id);
+      }
+      return Array.isArray(ids) ? [...new Set(ids.filter(id => allowed.has(id)))] : [];
+    }
+
+    function eligible(save, dex, level, inherited = save.training?.[dex]?.inherited) {
       const ids = [...new Set(species(dex).moves.filter(([, at]) => at <= level)
-        .map(([id]) => id).concat(learnedTms(save, dex)))];
+        .map(([id]) => id).concat(learnedTms(save, dex), inheritedMoves(dex, level, inherited)))];
       // Some species have no implemented attack yet. This is a visible combat
       // fallback, never a fabricated entry in that species' official learnset.
       if (!ids.some(attack)) ids.unshift('struggle');
@@ -52,19 +63,36 @@
 
     function cleanRecord(save, dex, entry) {
       entry = object(entry) ? entry : {};
+      const epoch = integer(save.rvk?.owned?.[dex]);
+      if (integer(entry.epoch) !== epoch) entry = {};
       const xp = Math.max(xpAt(dex, START_LEVEL), Math.min(xpAt(dex, MAX_LEVEL), integer(entry.xp)));
-      const allowed = eligible(save, dex, levelAt(dex, xp));
+      const level = levelAt(dex, xp), inherited = inheritedMoves(dex, level, entry.inherited);
+      const allowed = eligible(save, dex, level, inherited);
       let loadout = Array.isArray(entry.loadout)
         ? [...new Set(entry.loadout.filter(id => allowed.includes(id)))].slice(0, MAX_MOVES) : [];
       if (!loadout.some(attack)) loadout = defaultLoadout(save, dex, allowed);
-      return { xp, loadout, updated: integer(entry.updated) };
+      return {
+        xp, loadout, updated: integer(entry.updated), inherited, epoch,
+        evolutionLevel: Math.min(level, integer(entry.evolutionLevel))
+      };
     }
 
     function normalize(save) {
+      for (const key of ['owned', 'shiny']) {
+        for (const dex of Object.keys(save.rvk?.[key] || {})) {
+          if (save[key]?.[dex] && integer(save[key][dex].at) <= integer(save.rvk[key][dex])) {
+            delete save[key][dex];
+          }
+        }
+      }
       if (!object(save.training)) save.training = {};
       for (const dex of Object.keys(save.training)) {
         if (!Object.hasOwn(data.pokemon, dex) || !save.owned?.[dex]) delete save.training[dex];
         else save.training[dex] = cleanRecord(save, dex, save.training[dex]);
+      }
+      if (save.partner && !save.owned?.[save.partner]) {
+        save.partner = save.owned?.[save.starter] ? save.starter : +Object.keys(save.owned || {})[0] || null;
+        save.partnerShiny = !!save.partnerShiny && !!save.shiny?.[save.partner];
       }
       return save;
     }
@@ -106,28 +134,218 @@
 
     function reward({ time, kills, bosses }) {
       if (![time, kills, bosses].every(value => Number.isFinite(value) && value >= 0) ||
-          !Number.isInteger(kills) || !Number.isInteger(bosses)) {
+          !Number.isSafeInteger(kills) || !Number.isSafeInteger(bosses)) {
         throw new RangeError('Invalid match performance');
       }
-      const earned = Math.floor(time * 2) + kills * 3 + bosses * 200;
+      // The defeat bonus grows with survival time, but sublinearly with kill rate.
+      const earned = Math.floor(time / 2 + Math.sqrt(time * kills) / 4 + bosses * 15);
       if (!Number.isSafeInteger(earned)) throw new RangeError('Match XP exceeds the supported range');
       return earned;
     }
 
     function award(save, dex, performance) {
       const before = state(save, dex), previous = available(save, dex);
-      const earned = reward(performance);
-      record(save, dex).xp = Math.min(xpAt(dex, MAX_LEVEL), before.xp + earned);
+      let points = reward(performance), xp = before.xp;
+      // Convert performance points at each crossed level, keeping saved official XP intact.
+      let level = before.level;
+      while (points > 0 && level < MAX_LEVEL) {
+        const rate = level < EARLY_LEVEL ? Math.max(1, xpAt(dex, EARLY_LEVEL) / EARLY_POINTS)
+          : 1 + (level - EARLY_LEVEL) / 3;
+        const nextLevel = level < EARLY_LEVEL ? EARLY_LEVEL : level + 1;
+        const next = xpAt(dex, nextLevel), needed = (next - xp) / rate;
+        if (points < needed) {
+          xp += Math.floor(points * rate);
+          break;
+        }
+        xp = next;
+        points -= needed;
+        level = nextLevel;
+      }
+      record(save, dex).xp = xp;
       const after = state(save, dex);
       return {
-        dex: +dex, earned, gained: after.xp - before.xp, before, after,
-        unlocked: available(save, dex).filter(id => id !== 'struggle' && !previous.includes(id))
+        dex: +dex, earned: after.xp - before.xp, gained: after.xp - before.xp, before, after,
+        unlocked: available(save, dex).filter(id => id !== 'struggle' && !previous.includes(id)),
+        evolution: after.level > before.level ? pendingEvolution(save, dex) : null
       };
+    }
+
+    function pendingEvolution(save, dex) {
+      const entry = record(save, dex), level = levelAt(dex, entry.xp);
+      if (entry.evolutionLevel >= level) return null;
+      const options = species(dex).evolutions.filter(([target, at]) =>
+        at <= level && (!game || game.SPRITE_META[target]));
+      if (!options.length) return null;
+      return { dex: +dex, target: options[0][0], minimum: options[0][1], level };
+    }
+
+    function cancelEvolution(save, dex) {
+      const pending = pendingEvolution(save, dex);
+      if (!pending) throw new RangeError('This Pokemon is not ready to evolve');
+      record(save, dex).evolutionLevel = pending.level;
+      return pending;
+    }
+
+    function evolve(save, dex, target, now = Date.now()) {
+      const pending = pendingEvolution(save, dex);
+      if (!pending || pending.target !== +target) throw new RangeError('This evolution is not available');
+      const source = record(save, dex), existing = save.owned[target] ? record(save, target) : null;
+      const at = Math.max(integer(now), integer(save.owned[dex].at) + 1,
+        integer(save.rvk?.owned?.[dex]) + 1, integer(save.rvk?.owned?.[target]) + 1,
+        source.updated + 1, (existing?.updated || 0) + 1);
+      const before = state(save, dex), floor = xpAt(target, before.level);
+      const carriedXp = species(dex).growth === species(target).growth ? before.xp :
+        before.level === MAX_LEVEL ? floor : floor +
+          Math.floor(before.progress * (xpAt(target, before.level + 1) - floor));
+      const inherited = [...new Set((existing?.inherited || []).concat(available(save, dex)))];
+      save.owned[target] = { at, from: 'evolution' };
+      save.training[target] = cleanRecord(save, target, {
+        xp: Math.max(carriedXp, existing?.xp || 0), loadout: source.loadout,
+        inherited, updated: at, epoch: integer(save.rvk?.owned?.[target]),
+        evolutionLevel: existing?.evolutionLevel || 0
+      });
+      if (!object(save.shiny)) save.shiny = {};
+      if (save.shiny[dex]) save.shiny[target] = { at, from: 'evolution' };
+      if (!object(save.pupg)) save.pupg = {};
+      save.pupg[target] = { ...save.pupg[target] };
+      for (const [id, value] of Object.entries(save.pupg[dex] || {})) {
+        save.pupg[target][id] = Math.max(integer(value), integer(save.pupg[target][id]));
+      }
+      for (const key of ['pnat', 'pabil']) {
+        if (Array.isArray(save[key]?.[dex])) save[key][target] = [save[key][dex][0], at];
+      }
+      if (!object(save.ptm)) save.ptm = {};
+      save.ptm[target] = [...new Set((save.ptm[target] || []).concat(learnedTms(save, dex)))]
+        .filter(id => species(target).tms.includes(id));
+      if (save.dfav?.[dex] && Math.abs(save.dfav[dex]) >= Math.abs(save.dfav[target] || 0)) {
+        save.dfav[target] = save.dfav[dex];
+      }
+      if (save.pused?.[dex]) {
+        save.pused[target] = Math.max(integer(save.pused[dex]), integer(save.pused[target]));
+      }
+      if (save.partner === +dex) save.partner = +target;
+      if (save.starter === +dex) save.starter = +target;
+      if (Array.isArray(save.profile?.favs)) {
+        save.profile.favs = [...new Set(save.profile.favs.map(id => +id === +dex ? +target : id))];
+      }
+      if (!object(save.rvk)) save.rvk = {};
+      for (const key of ['owned', 'shiny']) {
+        if (!object(save.rvk[key])) save.rvk[key] = {};
+        save.rvk[key][dex] = at;
+      }
+      for (const key of ['owned', 'shiny', 'training', 'pupg', 'ptm', 'pnat', 'pabil',
+        'dfav', 'pused', 'pstart', 'pstart2', 'pbind', 'pban', 'pskin']) {
+        if (object(save[key])) delete save[key][dex];
+      }
+      return { ...pending, before, after: state(save, target) };
+    }
+
+    function isBase(dex) {
+      return !species(dex).prevo;
+    }
+
+    function baseOf(dex) {
+      while (species(dex).prevo) dex = species(dex).prevo;
+      return +dex;
+    }
+
+    function gachaEligible(mon, banner) {
+      return isBase(mon.dex) && !!game.SPRITE_META[mon.dex] &&
+        (banner === game.Gacha.SPOOKY.gen ? mon.types.includes('ghost') : mon.gen === banner);
+    }
+
+    function gachaCollection(save, banner) {
+      const pool = game.DEX.filter(mon => gachaEligible(mon, banner));
+      const owned = new Set(Object.keys(save.owned || {}).map(baseOf));
+      const shiny = new Set(Object.keys(save.shiny || {}).map(baseOf));
+      return {
+        have: pool.filter(mon => owned.has(mon.dex)).length, total: pool.length,
+        shiny: pool.filter(mon => shiny.has(mon.dex)).length
+      };
+    }
+
+    function gachaPool(rarity, banner) {
+      for (let distance = 0; distance < 5; distance++) {
+        for (const tier of distance ? [rarity + distance, rarity - distance] : [rarity]) {
+          if (tier < 1 || tier > 5) continue;
+          const list = game.Gacha.pool(tier, banner);
+          if (list.length) return { rarity: tier, list };
+        }
+      }
+      throw new Error('No base Pokemon are available for gacha banner: ' + banner);
+    }
+
+    function gachaRates(banner) {
+      const rates = new Map(game.Gacha.RATES.map(([tier]) => [tier, 0]));
+      for (const [tier, rate] of game.Gacha.RATES) {
+        const actual = gachaPool(tier, banner).rarity;
+        rates.set(actual, rates.get(actual) + rate);
+      }
+      return [...rates];
+    }
+
+    function mergeOwnership(target, left, right) {
+      const keys = ['pupg', 'ptm', 'pnat', 'pabil', 'dfav', 'pused', 'pskin',
+        'pstart', 'pstart2', 'pbind', 'pban'];
+      const sources = [left, right].map(save => ({
+        owned: { ...save.owned }, revoked: { ...save.rvk?.owned },
+        maps: Object.fromEntries(keys.map(key => [key, { ...save[key] }]))
+      }));
+      if (!object(target.rvk)) target.rvk = {};
+      for (const key of ['owned', 'shiny']) {
+        const collections = [target, left, right].map(save => ({ ...save[key] }));
+        const revoked = target.rvk[key] = { ...target.rvk[key] };
+        for (const save of [left, right]) {
+          for (const [dex, at] of Object.entries(save.rvk?.[key] || {})) {
+            revoked[dex] = Math.max(integer(revoked[dex]), integer(at));
+          }
+        }
+        target[key] = {};
+        for (const dex of new Set(collections.flatMap(value => Object.keys(value)))) {
+          const valid = collections.map(value => value[dex]).filter(value =>
+            object(value) && (!integer(revoked[dex]) || integer(value.at) > integer(revoked[dex])));
+          valid.sort((a, b) => integer(a.at) - integer(b.at));
+          if (valid.length) target[key][dex] = { ...valid[0] };
+        }
+      }
+      for (const [dex, at] of Object.entries(target.rvk.owned)) {
+        if (!integer(at)) continue;
+        const live = sources.filter(source => integer(source.owned[dex]?.at) > at &&
+          integer(source.revoked[dex]) === at);
+        for (const key of keys) {
+          if (!object(target[key])) target[key] = {};
+          delete target[key][dex];
+          const values = live.map(source => source.maps[key][dex]).filter(value => value !== undefined);
+          if (!values.length) continue;
+          if (key === 'pupg') {
+            const upgrades = target[key][dex] = {};
+            for (const value of values) {
+              for (const [id, count] of Object.entries(value)) {
+                upgrades[id] = Math.max(integer(upgrades[id]), integer(count));
+              }
+            }
+          } else if (key === 'ptm') {
+            target[key][dex] = [...new Set(values.flat())];
+          } else if (key === 'pused') {
+            target[key][dex] = Math.max(...values.map(integer));
+          } else if (key === 'dfav') {
+            target[key][dex] = values.sort((a, b) => Math.abs(b) - Math.abs(a))[0];
+          } else {
+            values.sort((a, b) => (Array.isArray(b) ? integer(b[1]) : 0) -
+              (Array.isArray(a) ? integer(a[1]) : 0) || JSON.stringify(b).localeCompare(JSON.stringify(a)));
+            target[key][dex] = values[0];
+          }
+        }
+      }
     }
 
     function merge(target, left, right) {
       const a = object(left.training) ? left.training : {};
       const b = object(right.training) ? right.training : {};
+      // The legacy collection merge keeps the oldest acquisition. After an
+      // evolution, only acquisitions newer than its tombstone can survive.
+      mergeOwnership(target, left, right);
+      normalize(target);
       target.training = {};
       for (const dex of new Set([...Object.keys(a), ...Object.keys(b)])) {
         if (!Object.hasOwn(data.pokemon, dex) || !target.owned?.[dex]) continue;
@@ -136,7 +354,9 @@
           ? (JSON.stringify(x.loadout) >= JSON.stringify(y.loadout) ? x : y)
           : (x.updated > y.updated ? x : y);
         target.training[dex] = cleanRecord(target, dex, {
-          xp: Math.max(x.xp, y.xp), loadout: latest.loadout, updated: latest.updated
+          xp: Math.max(x.xp, y.xp), loadout: latest.loadout, updated: latest.updated,
+          inherited: [...new Set(x.inherited.concat(y.inherited))], epoch: x.epoch,
+          evolutionLevel: Math.max(x.evolutionLevel, y.evolutionLevel)
         });
       }
       return target;
@@ -169,11 +389,135 @@
       return true;
     }
 
+    function dismissEvolution() {
+      if (!evolving) return;
+      clearTimeout(evolving.timer);
+      evolving = null;
+      $('scr-evolution').classList.add('hidden');
+    }
+
+    function interruptEvolution() {
+      const session = evolving;
+      dismissEvolution();
+      game.UI.toast(text('El progreso ha cambiado. Revisa la evoluci\u00f3n de nuevo.'), 4500);
+      if (game.DB.save && game.Game.state === 'ui') game.MenuUI.open();
+      else if (game.DB.save === session.save && game.Game.state === 'over') {
+        const dex = [session.currentDex, session.dex, session.target, session.save.partner]
+          .find(id => session.save.owned[id]);
+        session.done(dex);
+      }
+    }
+
+    function openEvolution(dex, done) {
+      if (game.Game.state !== 'over') {
+        throw new Error('Pokemon evolutions are only available on the match XP results screen');
+      }
+      const pending = pendingEvolution(game.DB.save, dex);
+      if (!pending) return done(+dex);
+      if (evolving) throw new Error('An evolution is already in progress');
+      const save = game.DB.save, session = { ...pending, save, done };
+      evolving = session;
+      const screen = $('scr-evolution'), stage = $('evolution-stage');
+      const stop = $('evolution-stop'), next = $('evolution-continue');
+      const soft = $('evolution-soft');
+      const name = game.DEX_BY[dex].name, targetName = game.DEX_BY[pending.target].name;
+      game.UI.show('scr-evolution');
+      $('evolution-title').textContent = text('Evoluci\u00f3n');
+      $('evolution-message').textContent = name + ' ' + text('est\u00e1 evolucionando...');
+      $('evolution-level').textContent = text('Nivel permanente') + ' ' + pending.level +
+        ' \u00b7 ' + text('Evoluciona al nivel') + ' ' + pending.minimum;
+      stop.classList.remove('hidden');
+      next.classList.add('hidden');
+      stage.classList.add('evolution-running');
+      soft.checked = gentleEvolution ??
+        (window.matchMedia('(prefers-reduced-motion: reduce)').matches || game.Settings.get('calm'));
+      stage.classList.toggle('evolution-soft', soft.checked);
+      soft.onchange = () => {
+        gentleEvolution = soft.checked;
+        stage.classList.toggle('evolution-soft', soft.checked);
+      };
+      const shiny = +dex === save.partner && !!save.partnerShiny && !!save.shiny?.[dex];
+      for (const [id, mon] of [['evolution-before', +dex], ['evolution-after', pending.target]]) {
+        game.UI.sprite($(id), mon, { scale: 4, hero: true, shadow: false, shiny });
+      }
+
+      function finish(cancelled) {
+        if (evolving !== session || session.finished) return;
+        if (game.DB.save !== save || !save.owned[dex] ||
+            pendingEvolution(save, dex)?.level !== pending.level ||
+            game.Game.state !== 'over') {
+          interruptEvolution();
+          return;
+        }
+        clearTimeout(session.timer);
+        session.finished = true;
+        stage.classList.remove('evolution-running');
+        stage.classList.toggle('evolution-complete', !cancelled);
+        stop.classList.add('hidden');
+        next.classList.remove('hidden');
+        if (cancelled) {
+          cancelEvolution(save, dex);
+          session.currentDex = +dex;
+          $('evolution-message').textContent = name + ' ' + text('ha dejado de evolucionar.');
+          $('evolution-level').textContent = pending.level < MAX_LEVEL
+            ? text('Volver\u00e1 a intentarlo al siguiente nivel.') + ' (' + (pending.level + 1) + ')'
+            : text('Nivel m\u00e1ximo');
+          game.Audio.sfx('select');
+        } else {
+          evolve(save, dex, pending.target);
+          session.currentDex = pending.target;
+          $('evolution-message').textContent = name + ' \u2192 ' + targetName + '!';
+          $('evolution-level').textContent = text('Nivel permanente') + ' ' +
+            state(save, pending.target).level;
+          game.Audio.sfx('confirm');
+          game.Progress.checkAch();
+        }
+        saveChanges();
+        next.focus();
+      }
+
+      stage.classList.remove('evolution-complete');
+      stop.onclick = () => finish(true);
+      next.onclick = () => {
+        if (evolving !== session || !session.finished) return;
+        const current = session.currentDex;
+        dismissEvolution();
+        openEvolution(current, done);
+        if (!evolving) document.querySelector('.scr:not(.hidden) button:not([disabled])')?.focus();
+      };
+      screen.onkeydown = event => {
+        if (event.key === 'Escape' || event.key.toLowerCase() === 'b') {
+          event.preventDefault();
+          event.stopPropagation();
+          finish(true);
+        } else if (event.key === 'Tab') {
+          const controls = session.finished ? [soft, next] : [soft, stop];
+          if (event.shiftKey && document.activeElement === controls[0]) {
+            event.preventDefault();
+            controls[1].focus();
+          } else if (!event.shiftKey && document.activeElement === controls[1]) {
+            event.preventDefault();
+            controls[0].focus();
+          }
+        }
+      };
+      stop.focus();
+      game.Audio.sfx('select');
+      session.timer = setTimeout(() => finish(false), 4800);
+    }
+
+    function evolutionHint(dex) {
+      const next = species(dex).evolutions.find(([target]) => game.SPRITE_META[target]);
+      if (next) return text('Evoluciona al nivel') + ' ' + next[1] + ': ' + game.DEX_BY[next[0]].name;
+      return Object.values(data.pokemon).some(mon => mon.prevo === +dex)
+        ? text('Su m\u00e9todo especial de evoluci\u00f3n a\u00fan no est\u00e1 disponible.') : '';
+    }
+
     function progressHtml(dex) {
       const value = state(game.DB.save, dex);
-      return '<b>' + text('Nivel de Pok\u00e9mon') + ' ' + value.level + '</b>' +
+      return '<b>' + text('Nivel permanente') + ' ' + value.level + '</b>' +
         '<progress class="training-xp" max="1" value="' + value.progress + '" aria-label="' +
-        text('Experiencia de Pok\u00e9mon') + '"></progress><small>' +
+        text('Experiencia permanente') + '"></progress><small>' +
         (value.level === MAX_LEVEL ? text('Nivel m\u00e1ximo') : number(value.current) + ' / ' +
           number(value.next) + ' XP') + '</small>';
     }
@@ -207,6 +551,7 @@
       $('training-name').textContent = mon.name;
       $('training-progress').innerHTML = progressHtml(dex);
       $('training-source').textContent = text('Datos de movimientos') + ': ' + sourceName(value.version);
+      $('training-evolution').textContent = evolutionHint(dex);
       $('training-guest').classList.toggle('hidden', !game.DB.guest);
       $('training-fallback').classList.toggle('hidden', !allowed.includes('struggle'));
       $('training-play').classList.toggle('hidden', !startFromTraining);
@@ -258,6 +603,11 @@
         if (existing) existing.tm = true;
         else entries.push({ id, tm: true });
       }
+      for (const id of record(save, dex).inherited) {
+        const existing = entries.find(entry => entry.id === id);
+        if (!existing) entries.push({ id, inherited: true });
+        else if (existing.level > value.level && !existing.tm) existing.inherited = true;
+      }
       if (!entries.length) {
         const empty = document.createElement('p');
         empty.className = 'sub';
@@ -268,7 +618,8 @@
         const def = game.Moves.BY_ID[entry.id], unlocked = allowed.includes(entry.id);
         const row = document.createElement('div');
         row.className = 'training-move panel' + (unlocked ? '' : ' locked');
-        const learned = entry.tm ? 'MT' : entry.level === 0 ? text('Evoluci\u00f3n') :
+        const learned = entry.inherited ? text('Antes de evolucionar') : entry.tm ? 'MT' :
+          entry.level === 0 ? text('Evoluci\u00f3n') :
           text('Nivel') + ' ' + entry.level;
         row.innerHTML = game.Icons.html('move:' + entry.id, 26) +
           '<div><b>' + escape(moveName(entry.id)) + '</b><small>' + escape(text(def.desc)) +
@@ -327,6 +678,7 @@
     }
 
     function preparePlayer(player) {
+      dismissEvolution();
       const value = state(game.DB.save, player.dex);
       player.moves = [];
       player.slots = [];
@@ -368,7 +720,8 @@
         const save = game.DB.save;
         const level = save?.owned[mon.dex] ? state(save, mon.dex).level : START_LEVEL;
         const natural = species(mon.dex).moves.filter(([, at]) => at <= level).map(([id]) => id);
-        return [...new Set(natural.concat(!naturalOnly && save ? learnedTms(save, mon.dex) : []))];
+        const inherited = !naturalOnly && save?.owned[mon.dex] ? record(save, mon.dex).inherited : [];
+        return [...new Set(natural.concat(!naturalOnly && save ? learnedTms(save, mon.dex) : [], inherited))];
       };
       game.startMoveOf = dex => state(game.DB.save, dex).loadout[0];
       game.startMove2Of = () => null;
@@ -400,17 +753,29 @@
         if (!result) return;
         const summary = document.createElement('div');
         summary.className = 'training-result';
-        summary.innerHTML = '<span>' + text('Experiencia de Pok\u00e9mon') + '</span><b class="gold">' +
+        function updateSummary(dex = result.dex) {
+          summary.innerHTML = '<span>' + text('Experiencia permanente') + '</span><b class="gold">' +
           escape(game.DEX_BY[result.dex].name) + ' +' + number(result.gained) + ' XP</b><p>' +
-          text('Nivel de Pok\u00e9mon') + ' ' + result.before.level + ' &rarr; ' + result.after.level +
-          '</p>' + progressHtml(result.dex) +
+          text('Nivel permanente') + ' ' + result.before.level + ' &rarr; ' + result.after.level +
+          '</p><p>' + text('Progreso permanente: movimientos y evoluciones.') + '</p>' +
+          (dex !== result.dex ? '<p class="gold">' + text('Evoluci\u00f3n') + ': ' +
+            escape(game.DEX_BY[dex].name) + '</p>' : '') + progressHtml(dex) +
           (result.unlocked.length ? '<p class="gold">' + text('Nuevos movimientos') + ': ' +
             result.unlocked.map(id => escape(moveName(id))).join(', ') + '</p>' : '');
+        }
+        updateSummary();
         $('over-stats').prepend(summary);
+        if (result.evolution) {
+          openEvolution(result.dex, dex => {
+            updateSummary(dex);
+            game.UI.show('scr-over');
+          });
+        }
       };
 
       const originalShow = game.UI.show;
       game.UI.show = function (id, ...args) {
+        if (id !== 'scr-evolution') dismissEvolution();
         originalShow.call(this, id, ...args);
         if (id === 'scr-menu') renderMenu();
       };
@@ -437,6 +802,10 @@
         lobby.append(button);
       };
       game.DB.onSync(() => {
+        const evolutionDex = evolving?.finished ? evolving.currentDex : evolving?.dex;
+        if (evolving && (game.DB.save !== evolving.save || !game.DB.save?.owned[evolutionDex])) {
+          interruptEvolution();
+        }
         renderMenu();
         if (game.DB.save && game.UI.isOpen('scr-training')) {
           if (!game.DB.save.owned[selectedDex]) selectedDex = game.DB.save.partner;
@@ -451,8 +820,8 @@
         'Entrenamiento': 'Training',
         'Niveles y cuatro movimientos': 'Levels and four moves',
         'Elegir movimientos': 'Choose moves',
-        'Nivel de Pok\u00e9mon': 'Pokemon level',
-        'Experiencia de Pok\u00e9mon': 'Pokemon experience',
+        'Nivel permanente': 'Permanent level',
+        'Experiencia permanente': 'Permanent XP',
         'Nivel m\u00e1ximo': 'Maximum level',
         'Datos de movimientos': 'Move data',
         'Movimiento': 'Move',
@@ -461,13 +830,31 @@
         'Disponible': 'Unlocked',
         'Bloqueado': 'Locked',
         'Evoluci\u00f3n': 'Evolution',
+        'Evoluciona al nivel': 'Evolves at level',
+        'Antes de evolucionar': 'Before evolving',
+        'Su m\u00e9todo especial de evoluci\u00f3n a\u00fan no est\u00e1 disponible.':
+          'Its special evolution method is not available yet.',
+        'est\u00e1 evolucionando...': 'is evolving...',
+        'ha dejado de evolucionar.': 'stopped evolving.',
+        'Volver\u00e1 a intentarlo al siguiente nivel.': 'It will try again at the next level.',
+        'Detener evoluci\u00f3n': 'Stop evolution',
+        'Continuar': 'Continue',
+        'Animaci\u00f3n suave (sin destellos)': 'Gentle animation (no flashing)',
+        'El progreso ha cambiado. Revisa la evoluci\u00f3n de nuevo.':
+          'Progress has changed. Check evolution again.',
+        'El gacha solo incluye formas base. Evoluciona tus Pok\u00e9mon para conseguir sus siguientes formas.':
+          'Gacha only includes base forms. Evolve your Pokemon to obtain their next forms.',
         'Mejora temporal': 'Temporary upgrade',
         'Nuevos movimientos': 'New moves',
         'Nivel de la partida': 'Run level',
+        'Partida': 'Run',
+        'Progreso permanente: movimientos y evoluciones.': 'Permanent progress: moves and evolutions.',
+        'Este nivel y sus mejoras se reinician en cada partida.':
+          'This level and its upgrades reset each run.',
         'Preparar partida': 'Prepare for a match',
         'Empezar partida': 'Start match',
-        'Tu Pok\u00e9mon gana 2 XP por segundo, 3 por enemigo y 200 por jefe al terminar la partida.':
-          'Your Pokemon earns 2 XP per second, 3 per defeated enemy and 200 per boss when the match ends.',
+        'Ganas XP permanente al terminar, seg\u00fan el tiempo sobrevivido y los Pok\u00e9mon derrotados, con un extra por jefes. Los primeros 10 niveles son m\u00e1s r\u00e1pidos.':
+          'Earn permanent XP when the run ends, based on survival time and defeated Pokemon, plus a boss bonus. The first 10 levels are quicker.',
         'Elige hasta cuatro movimientos antes de jugar. Las mejoras de la partida son temporales.':
           'Choose up to four moves before playing. In-match upgrades are temporary.',
         'Se muestran los movimientos implementados, con los niveles y especies de los juegos oficiales. Las MT aprendidas tambi\u00e9n se pueden equipar.':
@@ -489,7 +876,9 @@
 
     const api = {
       START_LEVEL, MAX_LEVEL, MAX_MOVES, xpAt, levelAt, normalize, state, available,
-      setLoadout, reward, award, merge, temporaryOffers, install, open,
+      setLoadout, reward, award, merge, pendingEvolution, cancelEvolution, evolve,
+      isBase, baseOf, gachaEligible, gachaCollection, gachaPool, gachaRates,
+      temporaryOffers, install, open, openEvolution,
       preparePlayer, decorateDex, decorateUpgrades
     };
     return api;
