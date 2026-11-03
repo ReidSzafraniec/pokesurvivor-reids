@@ -16,9 +16,10 @@ function loadSpriteDirection() {
 }
 const spriteDirection = loadSpriteDirection();
 
-test('all eleven menu buildings have reachable, non-overlapping door approaches', () => {
-  assert.equal(town.BUILDINGS.length, 11);
-  assert.equal(new Set(town.BUILDINGS.map(b => b.id)).size, 11);
+test('all ten menu buildings have reachable, non-overlapping door approaches', () => {
+  assert.equal(town.BUILDINGS.length, 10);
+  assert.equal(new Set(town.BUILDINGS.map(b => b.id)).size, 10);
+  assert(!town.BUILDINGS.some(b => b.id === 'upgrades'));
   const start = { x: 528, y: 548 }, queue = [start], visited = new Set(['528,548']);
   for (let i = 0; i < queue.length; i++) {
     const point = queue[i];

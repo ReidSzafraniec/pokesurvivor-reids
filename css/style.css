@@ -1215,14 +1215,30 @@ html:lang(zh) .btn, html:lang(zh) .chip { letter-spacing: 0; }
   .topbar img { width: 14px; height: 14px; }
 }
 
-/* Persistent Pokemon levels and the between-match moveset. */
+/* Permanent growth, moves and utility perks share one Training screen. */
 #scr-training { padding-top: 66px; }
 .training-head { display: flex; align-items: center; gap: 20px; }
 .training-head .stage { flex: 0 0 160px; }
 .training-head select { width: 100%; max-width: 360px; }
+.training-head .note { margin: 6px 0; }
 .training-summary { display: grid; gap: 4px; margin: 8px 0; }
 .training-summary small { color: var(--muted); }
 .training-xp { display: block; width: 100%; height: 12px; accent-color: var(--gold); }
+.training-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 14px 0; }
+.training-stat { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 10px; background: rgba(0,0,0,.2); border-radius: 8px; }
+.training-stat span { font-size: 13px; }
+.training-stat.nat-up { color: #63e799; }
+.training-stat.nat-down { color: #ff8296; }
+.training-traits { display: grid; gap: 8px; padding: 14px; }
+.training-traits .note { margin: 0; }
+.training-traits summary { cursor: pointer; color: var(--gold); }
+.training-item-row { display: grid; grid-template-columns: 110px minmax(0, 1fr) auto; align-items: center; gap: 8px; margin-top: 10px; }
+.training-item-row .field { width: 100%; min-width: 0; }
+.training-tabs { display: flex; gap: 8px; position: sticky; top: 0; z-index: 1; background: var(--box2); padding: 10px 0; }
+.training-tabs .btn { flex: 1; }
+.training-tabs [aria-selected="true"] { border-color: var(--gold); color: var(--gold); }
+.training-box :focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
+.training-perk small { display: block; color: var(--muted); font-size: 13px; margin-top: 4px; }
 .training-slots { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 14px 0; }
 .training-slot { display: grid; gap: 6px; min-width: 0; }
 .training-slot select { width: 100%; min-width: 0; }
@@ -1298,10 +1314,16 @@ html:lang(zh) .btn, html:lang(zh) .chip { letter-spacing: 0; }
 #training-play { display: block; margin: 14px 0 0 auto; }
 @media (max-width: 760px) {
   .training-slots { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .training-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .training-item-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .training-item-row label { grid-column: 1 / -1; margin: 0; }
+  .training-perk { grid-template-columns: 28px minmax(0, 1fr); }
+  .training-perk > .btn { grid-column: 2; justify-self: start; }
 }
 @media (max-height: 520px) {
-  #scr-training { padding: 8px; }
+  #scr-training { padding: 66px 8px 8px; }
   .training-head .stage { display: none; }
   .training-box { padding: 14px 18px; }
   .training-moves { max-height: 180px; }
+  .training-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
