@@ -83,7 +83,7 @@
   ]
 }
 </script>
-<link rel="stylesheet" href="css/style.css?v=11c8d0d01a">
+<link rel="stylesheet" href="css/style.css?v=training-1">
 <script src="js/core/locales.js?v=ba2ae89740"></script>
 <script src="js/noframe.js"></script>
 </head>
@@ -176,6 +176,7 @@
       <canvas id="menu-partner" class="stage" width="260" height="200"></canvas>
       <div class="nm" id="menu-partner-name"></div>
       <div class="lv" id="menu-partner-info"></div>
+      <div id="menu-training-progress" class="training-summary"></div>
       <div class="seg hidden" id="menu-shiny"><button data-v="0">Normal</button><button data-v="1"></button></div>
     </div>
   </div>
@@ -183,6 +184,7 @@
     <div class="box">
       <div class="menu-list">
         <button class="menu-item play" data-go="play">Jugar<small>Entra en la mazmorra</small></button>
+        <button id="menu-training" class="menu-item">Entrenamiento<small>Niveles y cuatro movimientos</small></button>
         <button class="menu-item" data-go="dex">Pokémon<small id="menu-dex-count">Tu colección</small></button>
         <button class="menu-item" data-go="upgrades">Mejoras<small>Haz más fuerte cada run</small></button>
         <button class="menu-item" data-go="shop">Tienda Kecleon<small>Mentas, Cápsulas y MT</small></button>
@@ -492,6 +494,33 @@
   </div>
 </section>
 
+<section id="scr-training" class="scr dim hidden" aria-labelledby="training-title">
+  <div class="box wide training-box">
+    <div class="row between">
+      <h2 id="training-title">Entrenamiento</h2>
+      <button id="training-back" class="btn small ghost">Volver</button>
+    </div>
+    <p class="sub">Elige hasta cuatro movimientos antes de jugar. Las mejoras de la partida son temporales.</p>
+    <div class="training-head">
+      <canvas id="training-stage" class="stage" width="160" height="120"></canvas>
+      <div class="grow">
+        <label for="training-mon">Pokémon</label>
+        <select id="training-mon" class="field"></select>
+        <h3 id="training-name"></h3>
+        <div id="training-progress" class="training-summary"></div>
+        <p id="training-source" class="note"></p>
+      </div>
+    </div>
+    <p class="note">Tu Pokémon gana 2 XP por segundo, 3 por enemigo y 200 por jefe al terminar la partida.</p>
+    <p id="training-guest" class="note gold hidden">Modo invitado: los niveles y movimientos se pierden al salir. Crea una cuenta para guardarlos.</p>
+    <p id="training-fallback" class="note gold hidden">Forcejeo es un ataque de emergencia: esta especie aún no tiene un ataque compatible desbloqueado.</p>
+    <div id="training-slots" class="training-slots"></div>
+    <p class="note">Se muestran los movimientos implementados, con los niveles y especies de los juegos oficiales. Las MT aprendidas también se pueden equipar.</p>
+    <div id="training-moves" class="training-moves"></div>
+    <button id="training-play" class="btn gold hidden">Empezar partida</button>
+  </div>
+</section>
+
 <section id="scr-upgrades" class="scr dim hidden">
   <div class="box wide">
     <div class="row between"><h2>Mejoras</h2><button class="btn small ghost" data-back>Volver</button></div>
@@ -544,7 +573,7 @@
 
 <section id="scr-levelup" class="scr dim hidden">
   <div class="box center">
-    <h2>¡Nivel <span id="lvl-num">2</span>!</h2>
+    <h2><span>Nivel de la partida</span> <span id="lvl-num">2</span></h2>
     <p class="sub">Elige una recompensa<span class="kbd-hint"> · <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd></span></p>
     <div id="cards" class="cards"></div>
     <button id="lvl-reroll" class="btn small ghost hidden" data-sfx="none" style="margin-top:10px">Cambiar opciones (<span id="lvl-rr-n">1</span>)<span class="kbd-hint"> · <kbd>R</kbd></span></button>
@@ -594,6 +623,8 @@
   </div>
 </section>
 
-<script defer src="js/app.min.js?v=064519c8ee"></script>
+<script defer src="js/data/learnsets.js?v=training-1"></script>
+<script defer src="js/training.js?v=training-1"></script>
+<script defer src="js/app.min.js?v=fcf19e59e0"></script>
 </body>
 </html>
