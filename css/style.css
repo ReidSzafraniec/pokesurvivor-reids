@@ -617,6 +617,69 @@ img.pix.off { filter: grayscale(1); opacity: .4; }
 .gen-tab:hover { border-color: var(--edge); }
 .gen-tab.on { border-color: var(--gold); background: rgba(255,210,63,.14); }
 .gen-tab.on b { color: var(--gold); }
+
+#scr-starters .starter-box { width: min(980px, 100%); }
+#starter-gens { flex-wrap: wrap; overflow: visible; margin-bottom: 12px; }
+#starter-gens .gen-tab { flex: 1 0 84px; padding: 8px 10px; }
+#starter-panel {
+  padding: 16px;
+  border: 2px solid rgba(244,248,255,.3); border-radius: 12px;
+  background: linear-gradient(120deg, rgba(89,45,144,.4), rgba(29,91,116,.35));
+}
+#starter-region { font-size: 24px; }
+#starter-grid {
+  display: flex; flex-wrap: wrap; justify-content: center;
+  gap: 12px; max-height: none; overflow: visible;
+}
+#starter-grid .starter-card {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  flex: 0 1 calc((100% - 36px) / 4);
+  color: var(--ink); font: inherit; text-shadow: inherit;
+  padding: 14px 6px; min-width: 0;
+}
+#starter-grid .starter-card b { max-width: 100%; font-size: 18px; margin: 4px 0 10px; }
+#starter-grid .starter-card canvas { max-width: 100%; height: auto; }
+.starter-types { display: flex; justify-content: center; flex-wrap: wrap; gap: 4px; }
+#starter-info { color: var(--gold); font-weight: 700; }
+.starter-footer { margin-top: 12px; }
+#scr-starters button:focus-visible {
+  outline: 3px solid #fff; outline-offset: 3px;
+}
+#starter-help { margin: 12px 0 0; }
+@media (max-height: 520px) {
+  #scr-starters { padding: 8px 12px; }
+  #scr-starters .starter-box { padding: 10px 14px; }
+  #scr-starters .sub { margin-bottom: 4px; }
+  #starter-gens { margin-bottom: 4px; gap: 4px; padding-bottom: 4px; }
+  #starter-gens .gen-tab { padding: 4px 8px; flex-basis: 70px; }
+  #starter-panel { padding: 6px 10px; }
+  #starter-region { font-size: 18px; }
+  #starter-grid .starter-card { padding: 4px; }
+  #starter-grid .starter-card canvas { width: 84px; height: 66px; }
+  #starter-grid .starter-card b { font-size: 14px; margin: 2px 0 4px; }
+  #starter-help { font-size: 11px; margin-top: 4px; }
+  .starter-footer { margin-top: 6px; }
+}
+@media (max-width: 480px) and (min-height: 521px) {
+  #starter-grid .starter-card { flex-basis: calc((100% - 12px) / 2); }
+}
+@media (max-height: 380px) {
+  #scr-starters .starter-box { padding: 8px 14px; }
+  #starter-subtitle { display: none; }
+  #starter-panel { padding: 4px 8px; }
+  #starter-region { font-size: 16px; margin-bottom: 0; }
+  #starter-gens .gen-tab { padding: 2px 6px; }
+  #starter-gens .gen-tab b { font-size: 13px; }
+  #starter-gens .gen-tab small { font-size: 10px; }
+  #starter-grid .starter-card { padding: 2px; }
+  #starter-grid .starter-card canvas { width: 54px; height: 42px; }
+  #starter-grid .starter-card b { font-size: 12px; margin: 0 0 2px; }
+  #starter-grid .type { padding: 2px 4px; font-size: 10px; line-height: 1.1; margin-right: 0; }
+  #starter-help {
+    position: absolute; width: 1px; height: 1px; overflow: hidden;
+    clip-path: inset(50%);
+  }
+}
 /* Halloween: cuenta atrás bajo el título del menú (menu.js). */
 .hw-count { display: inline-flex; align-items: center; gap: 8px; margin-top: 12px; padding: 5px 14px 5px 10px; border-radius: 999px;
   background: rgba(38, 19, 63, .82); border: 2px solid #ff8a2a; color: #ffd9a8; font-size: 15px; font-variant-numeric: tabular-nums;
