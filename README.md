@@ -31,8 +31,15 @@ HTML + CSS + JavaScript sobre Canvas 2D, en el navegador y en el móvil.
 
 ## Jugar
 
-Entra en [pokesurvivor.com](https://pokesurvivor.com). Crea una cuenta o entra como invitado, haz el test
-de personalidad y a la mazmorra.
+Entra en [pokesurvivor.com](https://pokesurvivor.com). Crea una cuenta o entra como invitado
+y elige compañero directamente, sin test de personalidad. Las pestañas muestran los tres
+iniciales de cada región, de Kanto a Paldea, más Pikachu en Kanto. Selecciona un Pokémon
+y pulsa **Elegir compañero** para llegar al pueblo. Las cuentas que ya tienen compañero
+lo conservan.
+
+Puedes elegir con **ratón o pantalla táctil**, con **Tab / flechas** y
+**Intro / Espacio**, o con **cruceta / palanca y A** en el mando. Cambiar de región
+borra la selección pendiente; no recibes el Pokémon hasta confirmar.
 
 | Tecla | Acción |
 |---|---|

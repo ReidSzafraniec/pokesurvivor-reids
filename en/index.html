@@ -83,7 +83,7 @@
   ]
 }
 </script>
-<link rel="stylesheet" href="css/style.css?v=town-training-1">
+<link rel="stylesheet" href="css/style.css?v=starter-town-1">
 <script src="js/core/locales.js?v=ba2ae89740"></script>
 <script src="js/noframe.js"></script>
 </head>
@@ -145,38 +145,23 @@
   </div>
 </section>
 
-<section id="scr-test" class="scr dim hidden">
-  <div class="box test-box">
-    <div class="progress"><i id="test-bar"></i></div>
-    <p class="sub" id="test-count"></p>
-    <p class="q" id="test-q"></p>
-    <div class="answers" id="test-a"></div>
-  </div>
-</section>
+<!-- Empty compatibility containers for the native engine's screen registry. -->
+<section id="scr-test" class="scr hidden" aria-hidden="true"></section>
+<section id="scr-result" class="scr hidden" aria-hidden="true"></section>
 
-<section id="scr-result" class="scr dim hidden">
-  <div class="box result">
-    <p class="sub">Tu personalidad es…</p>
-    <div class="trait" id="res-trait"></div>
-    <p id="res-text"></p>
-    <canvas id="res-stage" class="stage" width="200" height="150"></canvas>
-    <h3>Tu compañero: <span class="gold" id="res-name"></span></h3>
-    <div class="row" style="justify-content:center;margin-top:14px">
-      <button id="res-ok" class="btn gold">¡Vamos juntos!</button>
-      <button id="res-other" class="btn">Elegir otro</button>
+<section id="scr-starters" class="scr dim hidden" aria-labelledby="starter-title">
+  <div class="box wide starter-box">
+    <h2 id="starter-title">Elige a tu compañero</h2>
+    <p class="sub" id="starter-subtitle"></p>
+    <div class="gen-tabs" id="starter-gens" role="tablist"></div>
+    <div id="starter-panel" role="tabpanel">
+      <h3 id="starter-region" class="gold"></h3>
+      <div class="grid" id="starter-grid"></div>
     </div>
-  </div>
-</section>
-
-<section id="scr-starters" class="scr dim hidden">
-  <div class="box wide">
-    <h2>Elige a tu compañero</h2>
-    <p class="sub">Los iniciales de todas las regiones, y dos amigos más.</p>
-    <div class="grid" id="starter-grid"></div>
-    <div class="row between" style="margin-top:14px">
-      <button id="starter-back" class="btn ghost">Volver</button>
-      <span id="starter-info" class="grow" style="color:var(--muted)"></span>
-      <button id="starter-ok" class="btn gold" disabled>Elegir</button>
+    <p id="starter-help" class="note"></p>
+    <div class="row between starter-footer">
+      <span id="starter-info" class="grow" aria-live="polite"></span>
+      <button id="starter-ok" class="btn gold" disabled>Elegir compañero</button>
     </div>
   </div>
 </section>
@@ -730,6 +715,7 @@
 <script defer src="js/data/learnsets.js?v=evolution-1"></script>
 <script defer src="js/training.js?v=training-hub-1"></script>
 <script defer src="js/town.js?v=town-6"></script>
+<script defer src="js/onboarding.js?v=starter-regions-1"></script>
 <script defer src="js/app.min.js?v=ceb86d3775"></script>
 </body>
 </html>
