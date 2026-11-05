@@ -33,7 +33,6 @@ const cases = [
   ['slack-off', 'aqua-ring', 'normal'],
   ['milk-drink', 'aqua-ring', 'normal'],
   ['roost', 'aqua-ring', 'flying'],
-  ['synthesis', 'aqua-ring', 'grass'],
   ['morning-sun', 'aqua-ring', 'normal'],
   ['moonlight', 'aqua-ring', 'fairy'],
   ['shore-up', 'aqua-ring', 'ground'],
@@ -79,8 +78,10 @@ function fixture() {
         electric: '#ff0', fairy: '#faf', ground: '#b80'
       },
       clamp: (value, low, high) => Math.max(low, Math.min(high, value)),
-      rand: (low, high) => (low + high) / 2
+      rand: (low, high) => (low + high) / 2,
+      pickN: (values, count) => values.slice(-count)
     },
+    T: value => value,
     Coop: { active: false },
     Audio: { sfx() {} },
     FX: {
@@ -103,19 +104,66 @@ function fixture() {
   vm.runInContext(source.slice(source.lastIndexOf('((()=>{', moves),
     source.indexOf(",_0x599208['NATURES']=", moves)), runtime, { timeout: 3000 });
   for (const [first, next] of [
-    ['Player', 'Stats'], ['Stats', 'AbilityFX'], ['VFX', 'FX'], ['Combat', 'Spawner']
+    ['Player', 'Stats'], ['Stats', 'AbilityFX'], ['VFX', 'FX'], ['Combat', 'Spawner'],
+    ['Upgrades', 'Items']
   ]) {
     const start = source.indexOf("_0x599208['" + first + "']="),
       end = source.indexOf(",_0x599208['" + next + "']=", start);
     assert(start > 0 && end > start, first + ' module boundaries');
     vm.runInContext(source.slice(start, end), runtime, { timeout: 3000 });
   }
+  const levelUp = source.lastIndexOf('_0x599208[', source.indexOf("'rgn','icon'"));
+  const gacha = source.indexOf(",_0x599208['Gacha']=", levelUp);
+  assert(levelUp > 0 && gacha > levelUp, 'LevelUp module boundaries');
+  vm.runInContext(source.slice(levelUp, gacha), runtime, { timeout: 3000 });
   const player = new game.Player({
     dex: 7, hp: 100, atk: 10, pa: 10, sa: 10, df: 100, sd: 100, spd: 100,
     types: ['water']
   });
   return { game, player, effects };
 }
+
+test('Synthesis is not an equipable combat move', () => {
+  const { game } = fixture();
+  assert.equal(game.Moves.BY_ID.synthesis, undefined);
+  assert(!game.Moves.ALL.some(move => move.id === 'synthesis'));
+});
+
+for (const [dex, type] of [[1, 'grass'], [4, 'fire'], [7, 'water']]) {
+  test('Synthesis remains a slot-free run upgrade for ' + type + ' Pokemon', () => {
+    const { game, player } = fixture();
+    player.mon.dex = dex;
+    player.mon.types = [type];
+    player.moves = [game.Moves.instance('tackle')];
+    player.slots = [player.moves.slice()];
+    player.maxMoves = player.moves.length;
+    const moves = player.moves.slice(), slots = player.slots.slice(), regen = player.regenFlat;
+    const definition = game.LevelUp.STATS.find(stat => stat.id === 'rgn');
+    assert(definition);
+    assert.equal(definition.title, 'Síntesis');
+    for (let i = 0; i < 2; i++) {
+      const card = game.LevelUp.offer(player, 100).find(card => card.key === 'stat:rgn');
+      assert(card);
+      assert.equal(card.type, 'stat');
+      card.apply(player);
+    }
+    assert.equal(player.regenFlat, regen + 1.8);
+    assert.equal(player.statsTaken.rgn, 2);
+    assert.deepEqual(player.moves, moves);
+    assert.deepEqual(player.slots, slots);
+  });
+}
+
+test('the permanent Synthesis regeneration upgrade retains its balance', () => {
+  const { game } = fixture();
+  const upgrade = game.Upgrades.LIST.find(upgrade => upgrade.id === 'regen');
+  assert(upgrade);
+  assert.equal(upgrade.max, 5);
+  assert.equal(upgrade.base, 120);
+  assert.equal(upgrade.grow, 1.5);
+  assert.equal(game.Upgrades.perks({ regen: 1 }).regen, 0.2);
+  assert.equal(game.Upgrades.perks({ regen: 5 }).regen, 1);
+});
 
 for (const [id, template, type] of cases) {
   test(id + ' is a distinct native buff with the existing template balance', () => {
@@ -429,13 +477,13 @@ test('base-form coverage partitions all unevolved species without fabricated eli
   const covered = bases.filter(([, mon]) => mon.moves.some(([id]) => buffs.has(id)));
   const uncovered = bases.filter(([, mon]) => !mon.moves.some(([id]) => buffs.has(id)));
   assert.equal(bases.length, 541);
-  assert.equal(covered.length, 396);
-  assert.equal(uncovered.length, 145);
+  assert.equal(covered.length, 391);
+  assert.equal(uncovered.length, 150);
   const original = new Set(['harden', 'defense-curl', 'withdraw', 'sharpen', 'meditate', 'howl']);
   assert.equal(covered.filter(([, mon]) =>
     mon.moves.some(([id, level]) => original.has(id) && level <= 1)).length, 46);
   const allSupport = bases.filter(([, mon]) => mon.moves.some(([id]) => data.moves[id].support));
-  assert.equal(allSupport.length, 396);
+  assert.equal(allSupport.length, 391);
   assert.equal(covered.length + uncovered.length, bases.length);
   assert(covered.some(([dex]) => dex === '7'));
   assert(uncovered.some(([dex]) => dex === '129'));

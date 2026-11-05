@@ -393,10 +393,15 @@ test('unified Training keeps selection across keyboard tabs and displays level-g
   assert.match(document.getElementById('training-stats').innerHTML, /HP/);
   assert.match(document.getElementById('training-coins').textContent, /1,?000/);
   const rows = document.getElementById('training-perks').children;
-  assert.equal(rows.length, 7);
+  assert.equal(rows.length, 8);
+  assert.match(document.getElementById('training-perk-spd').textContent, /70/);
+  document.getElementById('training-perk-spd').onclick();
+  assert.equal(game.DB.save.coins, 930);
+  assert.equal(game.DB.save.pupg[4].spd, 1);
+  assert.match(document.getElementById('training-perk-spd').textContent, /100/);
   assert.match(document.getElementById('training-perk-xp').textContent, /100/);
   document.getElementById('training-perk-xp').onclick();
-  assert.equal(game.DB.save.coins, 900);
+  assert.equal(game.DB.save.coins, 830);
   assert.equal(game.DB.save.pupg[4].xp, 1);
   assert.equal(perks.getAttribute('aria-selected'), 'true');
   let prevented = false;
