@@ -86,7 +86,7 @@
 }
 </script>
 
-<link rel="stylesheet" href="css/style.css?v=starter-town-1">
+<link rel="stylesheet" href="css/style.css?v=shared-town-menu-1">
 <script src="js/core/locales.js?v=ba2ae89740"></script>
 <script src="js/noframe.js"></script>
 </head>
@@ -97,7 +97,7 @@
   <canvas id="town-map" tabindex="0" aria-describedby="town-help town-nearby"></canvas>
   <div class="town-heading">
     <div><h1 id="town-title" data-town-text="Villa Compañera"></h1><p data-town-text="Tu próxima aventura empieza aquí."></p></div>
-    <button id="town-menu" class="btn" data-town-text="Menú"></button>
+    <div class="town-controls"><span id="town-connection" class="hidden" role="status"></span><button id="town-party" class="btn hidden"></button><button id="town-menu" class="btn" data-town-text="Menú"></button></div>
   </div>
   <div class="town-footer">
     <div class="town-caption"><b id="town-partner" translate="no"></b><p id="town-help" data-town-text="WASD / flechas: moverse · E / Espacio: interactuar · M / Esc: menú"></p></div>
@@ -116,7 +116,7 @@
   <div class="box" style="width:min(420px,100%)">
     <div class="logo">
       <div class="t1">PokéSurvivor</div>
-      <div class="t2">Mundo Misterioso</div>
+      <div class="t2" translate="no">Evolution</div>
     </div>
     <p class="login-tag">Sobrevive a las hordas con tu compañero Pokémon · gratis, en PC y móvil</p>
     <p class="login-official">Web oficial: pokesurvivor.com · si alguien te pide pagar, no somos nosotros</p>
@@ -170,11 +170,11 @@
 </section>
 
 <section id="scr-menu" class="scr hidden">
-    <div id="menu-banner" class="menu-banner hidden" role="button" tabindex="0" aria-label="Novedades importantes"></div>
+  <div id="menu-banner" class="menu-banner hidden" hidden inert aria-hidden="true"></div>
   <div class="menu-left">
     <div class="logo">
       <div class="t1">PokéSurvivor<span class="splash">Folagor, Sekiam, PokeAlex: ¿un hueco?</span></div>
-      <div class="t2">Mundo Misterioso</div>
+      <div class="t2" translate="no">Evolution</div>
       <div id="menu-hw" class="hw-count hidden"></div>
     </div>
     <div class="partner-card">
@@ -391,8 +391,10 @@
     <h3 id="lobby-inv-title" style="margin:14px 0 6px">Invitar amigos</h3>
     <div id="lobby-invite" class="fr-list"></div>
     <div class="row" style="margin-top:14px">
+      <button id="lobby-ready" class="btn grow" type="button"></button>
       <button id="lobby-start" class="btn gold grow">Empezar partida</button>
     </div>
+    <p id="lobby-readiness" class="note" aria-live="polite" translate="no"></p>
     <p class="note" id="lobby-note"></p>
   </div>
 </section>
@@ -716,12 +718,13 @@
   </div>
 </section>
 
-<script defer src="js/data/learnsets.js?v=evolution-1"></script>
-<script defer src="js/training.js?v=training-hub-1"></script>
-<script defer src="js/town.js?v=town-6"></script>
+<script defer src="js/data/learnsets.js?v=status-buffs-4"></script>
+<script defer src="js/training.js?v=training-buffs-3"></script>
+<script defer src="js/town-multiplayer.js?v=shared-town-2"></script>
+<script defer src="js/town.js?v=shared-town-1"></script>
 <script defer src="js/onboarding.js?v=starter-regions-1"></script>
 <script defer src="js/hosting-config.js?v=hosting-1"></script>
 <script defer src="js/hosting.js?v=hosting-1"></script>
-<script defer src="js/app.min.js?v=a2a5c9e318"></script>
+<script defer src="js/app.min.js?v=f56a91b304"></script>
 </body>
 </html>

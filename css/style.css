@@ -56,6 +56,8 @@ canvas { image-rendering: pixelated; image-rendering: crisp-edges; }
 .town-heading { top: 76px; align-items: flex-start; }
 .town-heading h1 { margin: 0; font-size: 24px; color: #fff6db; }
 .town-heading p, .town-footer p { margin: 4px 0 0; }
+.town-controls { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; max-width: 52%; }
+#town-connection { width: 100%; text-align: right; font-size: 12px; }
 .town-heading > div, .town-caption, .town-door {
   background: #163c3bd9; border: 2px solid #d5d9ad; border-radius: 6px; padding: 8px 12px;
 }
@@ -66,7 +68,7 @@ canvas { image-rendering: pixelated; image-rendering: crisp-edges; }
 .town-door { text-align: center; min-width: 190px; max-width: 250px; }
 .town-door p { margin: 0 0 6px; font-size: 14px; color: #fff0ac; }
 .town button { pointer-events: auto; }
-.town #town-menu, .town #town-interact { font-size: 16px; padding: 8px 16px; min-height: 44px; }
+.town #town-menu, .town #town-party, .town #town-interact { font-size: 16px; padding: 8px 16px; min-height: 44px; }
 .town-pad { display: none; position: absolute; left: 20px; bottom: 24px; gap: 5px; }
 .town-pad button { width: 48px; height: 44px; padding: 0; touch-action: none; }
 .town-pad button:first-child { grid-column: 2; }
@@ -1100,6 +1102,8 @@ a.btn { text-decoration: none; display: inline-block; color: var(--ink); }
   box-shadow: 0 10px 26px rgba(0, 0, 0, .45); backdrop-filter: blur(4px);
   transition: transform .15s, border-color .15s;
 }
+/* Keep the engine's compatibility container hidden after announcement updates. */
+#scr-menu > #menu-banner { display: none !important; }
 .menu-banner.hidden { display: none; }
 .menu-banner:hover, .menu-banner:focus-visible { transform: translateY(-2px); border-color: var(--gold); outline: none; }
 .mb-slide { grid-area: 1 / 1; opacity: 0; visibility: hidden; transition: opacity .5s, visibility .5s; display: flex; flex-direction: column; gap: 6px; }
@@ -1151,7 +1155,6 @@ a.btn { text-decoration: none; display: inline-block; color: var(--ink); }
 /* Móvil en vertical: encima del título, en su sitio. En horizontal (muy bajo) no cabe: no sale. */
 @media (max-width: 760px) and (min-height: 521px) {
   .menu-banner { position: relative; top: auto; left: auto; flex: 0 0 auto; align-self: center; width: min(300px, calc(100% - 40px)); margin-top: 80px; }  /* (debajo de la barra de arriba, que aquí ocupa dos filas) */
-  .menu-banner:not(.hidden) + .menu-left { padding-top: 18px; }
 }
 /* Móvil en horizontal: arriba de la columna de la izquierda (la del título y el compañero),
  * justo debajo de la barra de arriba. El título y el compañero bajan y se encogen un poco. */
@@ -1162,15 +1165,9 @@ a.btn { text-decoration: none; display: inline-block; color: var(--ink); }
   .menu-banner:hover, .menu-banner:focus-visible { transform: none; }
   .mb-img { flex-basis: 70px; min-height: 42px; border-radius: 9px; }
   .mb-nav { left: 82px; }
-  .menu-banner:not(.hidden) + .menu-left { padding-top: 108px; }
-  .menu-banner:not(.hidden) + .menu-left .logo .t1 { font-size: 24px; }
-  .menu-banner:not(.hidden) + .menu-left #menu-partner { height: min(26vh, 104px); }
 }
 @media (max-height: 400px) {
   .menu-banner { top: 38px; }
-  .menu-banner:not(.hidden) + .menu-left { padding-top: 100px; }
-  .menu-banner:not(.hidden) + .menu-left .logo .t2 { display: none; }
-  .menu-banner:not(.hidden) + .menu-left #menu-partner { height: min(24vh, 84px); }
 }
 /* Botón Guardar (barra de arriba). */
 .save-btn { display: inline-flex; align-items: center; gap: 5px; font-weight: 700; }

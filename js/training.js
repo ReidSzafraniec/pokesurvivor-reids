@@ -395,7 +395,7 @@
       return pickN(stats.filter(stat => !stat.max || (player.statsTaken[stat.id] || 0) < stat.max), count)
         .map(stat => ({
           type: 'stat', key: 'stat:' + stat.id, icon: stat.icon, color: '#8fa3c4',
-          tag: 'Mejora temporal', title: stat.title, desc: stat.desc,
+          title: stat.title, desc: stat.desc,
           apply(target) {
             stat.apply(target);
             target.statsTaken[stat.id] = (target.statsTaken[stat.id] || 0) + 1;
@@ -1070,6 +1070,15 @@
         'Defensa': 'Defense',
         'Defensa especial': 'Special Defense',
         'Velocidad': 'Speed',
+        'F\u00edsico / Especial': 'Physical / Special',
+        'No hace da\u00f1o: acumula ATAQUE (f\u00edsico) y ATAQUE ESPECIAL mientras est\u00e9 activo.':
+          'Deals no damage: builds (physical) ATTACK and SPECIAL ATTACK while active.',
+        'No hace da\u00f1o: acumula ATAQUE (f\u00edsico) y DEFENSA mientras est\u00e9 activo.':
+          'Deals no damage: builds (physical) ATTACK and DEFENSE while active.',
+        'No hace da\u00f1o: acumula ATAQUE ESPECIAL y DEFENSA mientras est\u00e9 activo.':
+          'Deals no damage: builds SPECIAL ATTACK and DEFENSE while active.',
+        'No hace da\u00f1o: acumula ATAQUE (f\u00edsico) y VELOCIDAD mientras est\u00e9 activo.':
+          'Deals no damage: builds (physical) ATTACK and SPEED while active.',
         'Naturaleza': 'Nature',
         'Habilidad': 'Ability',
         'Sin habilidad': 'No ability',
@@ -1123,7 +1132,6 @@
           'Progress has changed. Check evolution again.',
         'El gacha solo incluye formas base. Evoluciona tus Pok\u00e9mon para conseguir sus siguientes formas.':
           'Gacha only includes base forms. Evolve your Pokemon to obtain their next forms.',
-        'Mejora temporal': 'Temporary upgrade',
         'Nuevos movimientos': 'New moves',
         'Nivel de la partida': 'Run level',
         'Partida': 'Run',

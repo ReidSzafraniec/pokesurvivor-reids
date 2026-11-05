@@ -125,10 +125,27 @@ mismo sitio; si la abriste desde el menú, vuelves a la lista.
 
 El pueblo no cambia tus monedas, colección, entrenamiento ni guardado. No da
 XP por caminar y la posición sólo dura durante la sesión de esa cuenta.
-Los amigos y las partidas cooperativas funcionan como antes; el pueblo no
-es una sala multijugador. Al terminar una partida individual, primero se
-mantienen los resultados, la XP permanente y las evoluciones, y después se
-vuelve al pueblo.
+Al crear o aceptar una sala cooperativa, hasta **cuatro jugadores** comparten
+este mismo pueblo. Cada uno mueve su Pokémon y su propia cámara; los demás
+jugadores no bloquean el paso. Las puertas abren únicamente los menús de quien
+interactúa, con sus propias monedas, colección, mochila y entrenamiento.
+Los demás pueden seguir caminando aunque el anfitrión tenga un menú abierto.
+La posición y el aspecto se sincronizan durante la sesión; no se comparten
+guardados ni compras.
+
+El botón **Preparar grupo**, la salida norte y **Jugar** abren la sala para
+invitar amigos y preparar la siguiente expedición. Cada jugador, incluido el
+anfitrión, debe pulsar **Prepararme**. **Cerrar esa sala cancela tu preparado**:
+al volver hay que prepararse otra vez. Si alguien entra, sale o se reconecta,
+se cancela el preparado de todos. El anfitrión puede empezar cuando todos los
+miembros actuales estén conectados y preparados, con un mínimo de dos jugadores.
+Si la conexión o la confirmación de inicio falla, se muestra el problema y
+hay que volver a prepararse. Todos deben usar una versión compatible del juego.
+
+Al terminar una partida, primero se mantienen los resultados, la XP permanente
+y las evoluciones, y después se vuelve al pueblo, compartido si sigues en la
+sala. Salir de la sala no cambia tu progreso; si sale el anfitrión, la sala se
+cierra como antes.
 
 ## Entrenamiento persistente
 
@@ -193,6 +210,56 @@ su nivel inicial que estén implementados están disponibles desde el principio,
 con hasta cuatro equipados. Subir de nivel desbloquea opciones
 para elegir después: no sustituye automáticamente tu equipo. La versión normal
 y shiny comparten nivel y movimientos.
+
+Los movimientos de apoyo incluyen **Rizo Defensa**, **Refugio**, **Defensa Férrea**,
+**Rizo Algodón** y **Armadura Ácida**, que reutilizan Fortaleza, y **Afilar**,
+**Meditación** y **Aullido**, que reutilizan Danza Espada.
+Mantienen las mejoras temporales acumulables del juego, no un sistema nuevo de
+niveles de estadísticas: hasta cinco acumulaciones durante siete segundos,
+con +7 puntos porcentuales de reducción de daño o +13% de Ataque físico por
+acumulación. Los movimientos del mismo atributo comparten esas acumulaciones.
+Cada especie solo desbloquea los
+movimientos y niveles oficiales de su versión de referencia; no se asigna un
+apoyo arbitrario a todos los Pokémon. Afilar y Meditación están implementados,
+pero no tienen aprendices en las versiones actualmente seleccionadas.
+
+**Desarrollo** y **Avivar** acumulan Ataque físico y Ataque Especial a la vez
+(+6,5% de cada uno por acumulación); **Corpulencia** acumula Ataque físico (+6,5%)
+y reducción de daño (+3,5 puntos porcentuales). En todos los niveles del
+movimiento, cada efecto dual tiene la mitad de la potencia del apoyo individual
+correspondiente. Comparten con los otros apoyos las acumulaciones de cada
+atributo, el máximo inicial de cinco y la duración inicial de siete segundos.
+Los apoyos individuales y las mejoras por nivel no cambian. Se adaptan al
+equilibrio existente, sin efectos adicionales por clima ni niveles de
+estadísticas oficiales. Que una especie no tenga apoyos implementados no
+significa que carezca de movimientos de mejora en los juegos oficiales.
+
+Los demás apoyos reutilizan exclusivamente esas mismas mejoras del juego:
+
+| Efecto existente | Nuevos movimientos |
+| --- | --- |
+| Danza Espada: Ataque físico | Afilagarras, Tambor |
+| Maquinación: Ataque Especial | Luminicola |
+| Agilidad: Velocidad | Pulimento, Aligerar, Viento Afín |
+| Fortaleza: reducción de daño | Amnesia, Masa Cósmica, Reserva, Carga, Barrera, Retracción, A Defender |
+| Ataque físico + reducción de daño | Enrosque |
+| Ataque Especial + reducción de daño | Paz Mental |
+| Ataque físico + Velocidad | Cambio de Marcha, Limpieza General |
+| Acua Aro: regeneración | Arraigo, Recuperación, Relajo, Batido, Respiro, Fotosíntesis, Sol Matinal, Luz Lunar, Recogearena, Descanso, Ovocuración, Auxilio |
+
+Cada efecto dual conserva la mitad de la potencia individual: +6,5% de Ataque
+físico o Especial, +5% de Velocidad y +3,5 puntos porcentuales de reducción de
+daño por acumulación inicial. Los apoyos regenerativos copian Acua Aro sin
+curación instantánea: +1,6 PS por segundo por acumulación, hasta cuatro,
+durante ocho segundos, con el mismo efecto visual de burbujas y la misma
+reserva compartida. Los demás apoyos mantienen los tiempos, límites y mejoras
+de su plantilla original.
+
+Solo cambian el nombre, el tipo oficial y, para los duales, la combinación de
+efectos existentes. No añaden precisión, evasión, críticos, costes de PS,
+sueño, bonificaciones climáticas, efectos de equipo ni eliminación de estados,
+trampas o Sustitutos. Barrera, Retracción y Auxilio no tienen aprendices en las
+versiones seleccionadas; no se inventan movimientos para hacerlos disponibles.
 
 ### Evoluciones
 
@@ -320,7 +387,10 @@ these settings are missing or invalid.
 7. Share the **Hosting URL printed by the successful deploy**. Each person
    creates a new account, chooses a partner, and uses the town's **Friends**
    phone to add the others by nickname. Accept friend requests, then have one
-   player invite both friends into the same room and start the run.
+   player invite both friends into the same room. All three share the town.
+   Open the expedition room and have everyone, including the host, press
+   **Ready up**; the host can start once all current members are connected
+   and ready. Closing that room clears your readiness.
 
 For updates, run `npm run deploy` again. `npm run preview` stages the site and
 starts a localhost-only Hosting emulator; it uses your configured real backend
@@ -336,8 +406,10 @@ directory pages such as `/en/` are supported; there is no SPA catch-all rewrite
 that turns missing scripts into HTML responses.
 
 **Co-op connectivity:** direct WebRTC uses public STUN. If a browser cannot
-connect directly, gameplay uses the project's Realtime Database inboxes at a
-lower update rate. Room membership and seats are published atomically, with
+connect directly, shared-town presence, ready-up acknowledgements, and
+gameplay use the project's Realtime Database inboxes. Gameplay uses a lower
+update rate on relay. The same readiness and launch checks apply to both
+transports. Room membership and seats are published atomically, with
 rules enforcing a maximum of four. The host releases departed lobby seats;
 active games retain their existing reconnect behavior. Relay can add latency and consume significantly
 more database bandwidth. There is no paid TURN dependency. WebRTC can disclose
@@ -360,8 +432,9 @@ reload first, then unregister its service worker in browser developer tools.
 Do not clear site storage without a backup of any local saves.
 
 **Acceptance before sharing:** use three separate signed-in browser sessions
-to check invitations, joining, starting, movement, ending a run, and persistence
-after reload. Also check a relay session and connections from different home
+to check invitations, joining, shared-town movement, everyone's readiness,
+starting, ending a run, and persistence after reload. Also check a relay
+session and connections from different home
 networks. Automated local tests cannot prove your friends' remote connections.
 
 The upstream feature description below is retained for context; the verified

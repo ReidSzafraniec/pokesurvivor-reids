@@ -146,7 +146,7 @@ test('invalid town movement is rejected explicitly', () => {
   assert.throws(() => town.move({ x: NaN, y: 2 }, { x: 0, y: 1 }, 0.1), RangeError);
 });
 
-function fixture() {
+function fixture(connection) {
   const elements = new Map(), frames = new Map(), listeners = new Map(), sync = [];
   let nextFrame = 0, observer;
   const brush = new Proxy({}, { get: (target, key) => target[key] || (() => {}), set: (target, key, value) => (target[key] = value, true) });
@@ -163,7 +163,8 @@ function fixture() {
       id, dataset: {}, disabled: false, textContent: '', children: [],
       classList: {
         add: value => classes.add(value), remove: value => classes.delete(value),
-        contains: value => classes.has(value)
+        contains: value => classes.has(value),
+        toggle(value, force) { if (force ?? !classes.has(value)) classes.add(value); else classes.delete(value); }
       },
       getContext: () => brush,
       getBoundingClientRect: () => ({ width: 960, height: 600 }),
@@ -179,9 +180,10 @@ function fixture() {
     elements.set(id, node);
     return node;
   }
-  const screenIds = ['scr-town', 'scr-menu', 'scr-login', ...town.DESTINATIONS.map(b => 'scr-' + b.id)];
+  const screenIds = ['scr-town', 'scr-menu', 'scr-login', 'scr-lobby', 'scr-over', ...town.DESTINATIONS.map(b => 'scr-' + b.id)];
   screenIds.forEach(id => element(id));
-  for (const id of ['town-map', 'town-menu', 'town-partner', 'town-action', 'town-interact', 'town-nearby', 'menu-town']) element(id);
+  for (const id of ['town-map', 'town-menu', 'town-partner', 'town-action', 'town-interact', 'town-nearby', 'menu-town',
+    'town-party', 'town-connection', 'lobby-ready', 'lobby-readiness', 'lobby-start', 'lobby-menu', 'lobby-leave']) element(id);
   const pads = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].map(code => {
     const pad = element('pad-' + code, false);
     pad.dataset = { townMove: code, label: code };
@@ -202,6 +204,8 @@ function fixture() {
     }
   };
   const host = {
+    performance: { now: () => 0 }, crypto: { randomUUID: () => 'test-nonce' },
+    console, ...connection?.host,
     document: doc, devicePixelRatio: 1,
     addEventListener: (name, handler) => listeners.set(name, handler),
     requestAnimationFrame: handler => { frames.set(++nextFrame, handler); return nextFrame; },
@@ -218,7 +222,10 @@ function fixture() {
       user: 'first', guest: false, save: { partner: 25, owned: { 25: {} }, shiny: {}, partnerShiny: false },
       onSync: callback => sync.push(callback)
     },
-    T: value => value, I18n: { add() {} }, Skins: { worn: () => null },
+    T: value => value, I18n: { add() {} }, Skins: { worn: () => null, get: () => null },
+    Social: connection?.game.Social || { room: null, uid: null, on() {}, off() {} },
+    Net: connection?.game.Net || { on() {}, off() {}, onPeer() {}, broadcast() {} },
+    Coop: { active: false, COLORS: ['red', 'blue', 'green', 'yellow'] },
     DEX_BY: { 25: { name: 'Pikachu' }, 4: { name: 'Charmander' } },
     Sprites: {
       animMeta: () => ({ w: 40, h: 48 }),
@@ -226,10 +233,11 @@ function fixture() {
         constructor(dex, size, shiny) { this.dex = dex; this.size = size; this.shiny = shiny; avatars.push(this); }
         loop(animation) { this.animation = animation; }
         update() {}
-        draw(ctx, x, y) { drawn.push({ x, y }); rendered.push({ kind: 'avatar', x, y }); }
+        draw(ctx, x, y) { drawn.push({ x, y }); rendered.push({ kind: 'avatar', x, y, dex: this.dex }); }
       }
     },
     UI: {
+      toast() {},
       show(id, keepMenu) {
         screenIds.filter(name => name !== 'scr-town' && name !== id && !(keepMenu && name === 'scr-menu'))
           .forEach(name => elements.get(name).classList.add('hidden'));
@@ -250,15 +258,31 @@ function fixture() {
       },
       open() { game.UI.show('scr-menu'); }
     },
+    LobbyUI: {
+      init() {
+        elements.get('lobby-menu').onclick = () => game.MenuUI.open();
+        elements.get('lobby-start').onclick = () => {
+          const message = { k: 'start', host: game.Social.room.host, members: game.Social.room.members };
+          game.Net.broadcast(message);
+          game.Flow.startCoop(message);
+        };
+      },
+      open() { game.UI.show('scr-lobby', true); },
+      close() { game.UI.hide('scr-lobby'); }
+    },
     Flow: {
       goMenu() {
         game.Game.state = 'ui';
         game.MenuUI.open();
-      }
+      },
+      afterRun() { game.Game.state = 'ui'; game.LobbyUI.open(); },
+      startCoop() { game.Game.state = 'playing'; game.UI.hideAll(); }
     }
   };
+  if (connection) game.DB.fb = connection.game.DB.fb;
   town.install(game, host);
   game.MenuUI.init();
+  game.LobbyUI.init();
   function advance(time) {
     const pending = [...frames.entries()];
     for (const [id, handler] of pending) {
@@ -277,6 +301,92 @@ function fixture() {
   return { game, host, elements, frames, sync, avatars, drawn, painted, rendered, labels, actions, advance, key, pads,
     observe: () => observer(), visible: id => !elements.get(id).classList.contains('hidden') };
 }
+
+function sharedTown() {
+  const network = require('./helpers/town-party.cjs').party();
+  const towns = network.clients.map(c => {
+    c.controller.dispose();
+    const f = fixture(c);
+    c.controller = f.game.Town.multiplayer;
+    c.game = f.game;
+    f.game.Flow.goMenu();
+    return f;
+  });
+  network.advance(500);
+  return { network, towns };
+}
+
+test('four towns render all players and keep moving while the host uses a private menu', () => {
+  const { network, towns } = sharedTown();
+  for (const f of towns) {
+    f.advance(0);
+    assert.equal(f.rendered.filter(r => r.kind === 'avatar').length, 4);
+  }
+  const before = towns.map(f => JSON.stringify(f.game.DB.save));
+  towns[0].game.UI.show('scr-shop', true);
+  towns[1].key('keydown', 'ArrowRight');
+  towns[1].advance(100);
+  network.advance(200);
+  towns[3].advance(200);
+  const mate = towns[3].game.Town.multiplayer.getSnapshot().members.find(m => m.uid === 'p1');
+  assert(mate.pose.x > town.SPAWN.x);
+  assert.equal(towns[0].frames.size, 0);
+  assert.deepEqual(towns.map(f => JSON.stringify(f.game.DB.save)), before);
+  assert.equal(towns[3].rendered.filter(r => r.kind === 'avatar').length, 4);
+});
+
+test('room arrival defaults to town but explicit ready-up and training return stay in the lobby', () => {
+  const { towns } = sharedTown(), f = towns[0];
+  f.game.LobbyUI.open();
+  assert(f.visible('scr-town'));
+  assert(!f.visible('scr-lobby'));
+  f.elements.get('town-party').click();
+  assert(f.visible('scr-lobby'));
+  f.game.UI.show('scr-training', true);
+  f.game.LobbyUI.open();
+  assert(f.visible('scr-lobby'));
+  f.game.Game.state = 'over';
+  f.game.UI.show('scr-over');
+  assert(f.visible('scr-over'));
+  f.game.Flow.afterRun();
+  assert(f.visible('scr-town'));
+  assert(!f.visible('scr-lobby'));
+  assert(!f.visible('scr-over'));
+});
+
+test('ready-up controls require everyone and closing the actual menu clears readiness', () => {
+  const { network, towns } = sharedTown();
+  for (const f of towns) {
+    f.elements.get('town-party').click();
+    f.elements.get('lobby-ready').click();
+    network.flush();
+  }
+  network.advance(100);
+  assert.equal(towns[0].elements.get('lobby-start').disabled, false);
+  towns[2].elements.get('lobby-menu').click();
+  network.advance(200);
+  assert(!towns[2].game.Town.multiplayer.getSnapshot().ready);
+  assert.equal(towns[0].elements.get('lobby-start').disabled, true);
+  towns[2].elements.get('town-party').click();
+  assert(!towns[2].game.Town.multiplayer.getSnapshot().ready);
+});
+
+test('the native Start callback cannot bypass readiness through a direct click', () => {
+  const { towns } = sharedTown(), f = towns[0];
+  f.elements.get('town-party').click();
+  f.elements.get('lobby-start').click();
+  assert.equal(f.game.Game.state, 'ui');
+  f.game.Flow.startCoop({ k: 'start', host: 'p0', members: f.game.Social.room.members });
+  assert.equal(f.game.Game.state, 'ui');
+});
+
+test('ready-up text does not fight the native whitespace-normalizing translation observer', () => {
+  const { towns } = sharedTown(), f = towns[3], label = f.elements.get('lobby-readiness');
+  label.textContent = label.textContent.replace(/\s+/g, ' ').trim();
+  const translated = label.textContent;
+  f.observe();
+  assert.equal(label.textContent, translated, 'Observer reconciliation must not recreate removed line breaks');
+});
 
 test('keyboard and touch movement face the same direction as native combat sprites', () => {
   for (const [codes, x, y] of [
@@ -618,12 +728,17 @@ test('both entry points load the town after training and cache all required asse
   for (const page of ['../index.html', '../en/index.html']) {
     const source = fs.readFileSync(require.resolve(page), 'utf8');
     assert(source.indexOf('src="js/training.js') < source.indexOf('src="js/town.js'));
+    assert(source.indexOf('src="js/town-multiplayer.js') > source.indexOf('src="js/training.js'));
+    assert(source.indexOf('src="js/town-multiplayer.js') < source.indexOf('src="js/town.js'));
+    const multiplayerAsset = /src="(js\/town-multiplayer\.js\?v=[^"]+)"/.exec(source)?.[1];
+    assert(multiplayerAsset && worker.includes('./' + multiplayerAsset));
     assert(source.indexOf('src="js/town.js') < source.indexOf('src="js/app.min.js'));
     const asset = /src="(js\/town\.js\?v=[^"]+)"/.exec(source)[1];
     assert(worker.includes('./' + asset));
     const stylesheet = /href="(css\/style\.css\?v=[^"]+)"/.exec(source)[1];
     assert(worker.includes('./' + stylesheet));
     assert(source.includes('E / Espacio: interactuar'));
+    assert(source.includes('id="lobby-readiness" class="note" aria-live="polite" translate="no"'));
     for (const building of town.DESTINATIONS) {
       assert(source.includes(building.id === 'training' ? 'id="menu-training"' : 'data-go="' + building.id + '"'));
     }
