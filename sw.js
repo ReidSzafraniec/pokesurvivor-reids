@@ -1,8 +1,8 @@
-const CODE = 'ps-code-v14', ART = 'ps-art-v1';
+const CODE = 'ps-code-v15', ART = 'ps-art-v1';
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CODE).then(c => c.addAll([
-    './', './index.html', './en/', './css/style.css?v=starter-town-1', './manifest.webmanifest',
+    './', './index.html', './en/', './css/style.css?v=menu-evolution-1', './manifest.webmanifest',
     './js/core/locales.js?v=ba2ae89740', './js/noframe.js', './js/boot.js',
     './js/data/learnsets.js?v=evolution-1', './js/training.js?v=training-hub-1', './js/town.js?v=town-6',
     './js/onboarding.js?v=starter-regions-1',
