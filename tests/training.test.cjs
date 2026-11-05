@@ -327,6 +327,7 @@ test('temporary rewards are only stats, honor caps, and leave moves unchanged', 
   const offers = training.temporaryOffers(stats, player, (items, count) => items.slice(0, count));
   assert.equal(offers.length, 3);
   assert(offers.every(offer => offer.type === 'stat'));
+  assert(offers.every(offer => !Object.hasOwn(offer, 'tag')));
   offers[0].apply(player);
   assert.equal(player.hp, 120);
   assert.equal(player.statsTaken.hp, 1);
@@ -601,6 +602,55 @@ function loadNativePlayer(context) {
   context.Game.st = { time: 0 };
   return runtime;
 }
+
+test('actual upgrade cards omit absent badges and preserve labeled badges and selection', () => {
+  const { context } = installFixture();
+  const runtime = loadNativePlayer(context);
+  const source = fs.readFileSync(require.resolve('../js/app.min.js'), 'utf8');
+  const start = source.indexOf('function _0x36f88e(');
+  const end = source.indexOf('function _0x128f9d(', start);
+  assert(start > 0 && end > start);
+  const cards = [];
+  const container = { appendChild: card => cards.push(card) };
+  runtime.document = {
+    createElement: () => ({ dataset: {}, classList: { add() {} } })
+  };
+  runtime._0x35b851 = id => id === 'cards'
+    ? container : { classList: { toggle() {} } };
+  runtime._0x28e4f6 = () => 1;
+  runtime._0x5c28bf = (card, choose) => { card.onclick = choose; };
+  let selected;
+  runtime._0x128f9d = index => { selected = index; };
+  context.Icons = { html: icon => '<i data-icon="' + icon + '"></i>' };
+  vm.runInContext(source.slice(start, end), runtime, { timeout: 3000 });
+  const base = {
+    type: 'stat', icon: 'power', color: '#8fa3c4',
+    title: 'Power', desc: '+10% physical damage'
+  };
+  runtime._0x36f88e([
+    base, { ...base, tag: '' }, { ...base, tag: 'Tagged stat' },
+    { ...base, type: 'new', tag: 'Fire', cat: 'Special' },
+    { ...base, type: 'up', tag: 'Fire' },
+    { ...base, type: 'evo', tag: 'Evolution' }
+  ]);
+  assert.equal(cards.length, 6);
+  for (const card of cards.slice(0, 2)) {
+    assert.doesNotMatch(card.innerHTML, /tag-chip|undefined/);
+    assert.match(card.innerHTML, /Power/);
+    assert.match(card.innerHTML, /\+10% physical damage/);
+    assert.match(card.innerHTML, /data-icon="power"/);
+  }
+  assert.match(cards[0].innerHTML, /class="key">1<\/div>/);
+  for (const [index, label] of [[2, 'Tagged stat'], [3, 'Fire'], [4, 'Fire'], [5, 'Evolution']]) {
+    assert.match(cards[index].innerHTML, /class="tag-chip"/);
+    assert(cards[index].innerHTML.includes(label));
+  }
+  assert.match(cards[3].innerHTML, /class="tag-chip cat">Special/);
+  cards[0].onclick();
+  assert.equal(selected, 0);
+  cards[2].onclick();
+  assert.equal(selected, 2);
+});
 
 test('actual run levels and power-ups reset while permanent levels and move unlocks survive', () => {
   const { model, context, save } = installFixture();

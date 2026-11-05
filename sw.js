@@ -1,12 +1,12 @@
-const CODE = 'ps-code-v19', ART = 'ps-art-v1';
+const CODE = 'ps-code-v20', ART = 'ps-art-v1';
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CODE).then(c => c.addAll([
     './', './index.html', './en/', './css/style.css?v=starter-town-1', './manifest.webmanifest',
     './js/core/locales.js?v=ba2ae89740', './js/noframe.js', './js/boot.js',
-    './js/data/learnsets.js?v=status-buffs-4', './js/training.js?v=training-buffs-2', './js/town.js?v=town-6',
+    './js/data/learnsets.js?v=status-buffs-4', './js/training.js?v=training-buffs-3', './js/town.js?v=town-6',
     './js/onboarding.js?v=starter-regions-1',
-    './js/app.min.js?v=1ae40ac28e'
+    './js/app.min.js?v=48bf7a129f'
   ])).catch(error => {
     console.error('[PWA] Could not cache game code:', error);
     throw error;
