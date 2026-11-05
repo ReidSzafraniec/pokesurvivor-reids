@@ -1070,6 +1070,15 @@
         'Defensa': 'Defense',
         'Defensa especial': 'Special Defense',
         'Velocidad': 'Speed',
+        'F\u00edsico / Especial': 'Physical / Special',
+        'No hace da\u00f1o: acumula ATAQUE (f\u00edsico) y ATAQUE ESPECIAL mientras est\u00e9 activo.':
+          'Deals no damage: builds (physical) ATTACK and SPECIAL ATTACK while active.',
+        'No hace da\u00f1o: acumula ATAQUE (f\u00edsico) y DEFENSA mientras est\u00e9 activo.':
+          'Deals no damage: builds (physical) ATTACK and DEFENSE while active.',
+        'No hace da\u00f1o: acumula ATAQUE ESPECIAL y DEFENSA mientras est\u00e9 activo.':
+          'Deals no damage: builds SPECIAL ATTACK and DEFENSE while active.',
+        'No hace da\u00f1o: acumula ATAQUE (f\u00edsico) y VELOCIDAD mientras est\u00e9 activo.':
+          'Deals no damage: builds (physical) ATTACK and SPEED while active.',
         'Naturaleza': 'Nature',
         'Habilidad': 'Ability',
         'Sin habilidad': 'No ability',
