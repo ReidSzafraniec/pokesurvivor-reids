@@ -168,10 +168,15 @@ de la partida. Se conserva toda la XP permanente que ya tenías.
 
 **Entrenamiento** reúne estadísticas, naturaleza, habilidad, movimientos y
 compras en una pantalla, con pestañas **Movimientos** y **Ventajas**.
-Las Pokémonedas compran recarga, regeneración, recogida, aprendizaje,
-monedas, críticos y cambios de cartas; ya no compran HP, ataques, defensas
-ni velocidad. Las antiguas compras de esas estadísticas no tienen efecto
-y no se reembolsan. Mentas y Cápsulas siguen consumiendo objetos de la mochila.
+Las Pokémonedas compran velocidad, recarga, regeneración, recogida, aprendizaje,
+monedas, críticos y cambios de cartas; ya no compran HP, ataques ni defensas.
+Las antiguas compras de esas tres estadísticas no tienen efecto y no se
+reembolsan. **Zancada** conserva el equilibrio original: +3% de velocidad por
+rango, hasta ocho (+24%), con un precio inicial de 70 monedas y un factor de
+precio de 1,4 por rango, redondeado a la decena más cercana. Se compra por
+Pokémon y se suma como multiplicador al crecimiento de velocidad por nivel;
+los rangos de velocidad ya guardados vuelven a tener efecto.
+Mentas y Cápsulas siguen consumiendo objetos de la mochila.
 **Aprendizaje** da +5% por rango (hasta ocho) tanto a la XP de partida como a
 los puntos de rendimiento que se convierten en XP permanente. Se toma el rango
 comprado al empezar la partida; Huevo Suerte y los demás multiplicadores
@@ -245,7 +250,11 @@ Los demás apoyos reutilizan exclusivamente esas mismas mejoras del juego:
 | Ataque físico + reducción de daño | Enrosque |
 | Ataque Especial + reducción de daño | Paz Mental |
 | Ataque físico + Velocidad | Cambio de Marcha, Limpieza General |
-| Acua Aro: regeneración | Arraigo, Recuperación, Relajo, Batido, Respiro, Fotosíntesis, Sol Matinal, Luz Lunar, Recogearena, Descanso, Ovocuración, Auxilio |
+| Acua Aro: regeneración | Arraigo, Recuperación, Relajo, Batido, Respiro, Sol Matinal, Luz Lunar, Recogearena, Descanso, Ovocuración, Auxilio |
+
+**Síntesis** sigue siendo una mejora universal durante la partida: cada elección
+añade +0,9 PS por segundo de regeneración sin ocupar un hueco de movimiento.
+No se equipa ni se desbloquea como movimiento de una especie.
 
 Cada efecto dual conserva la mitad de la potencia individual: +6,5% de Ataque
 físico o Especial, +5% de Velocidad y +3,5 puntos porcentuales de reducción de
