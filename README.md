@@ -187,6 +187,56 @@ con hasta cuatro equipados. Subir de nivel desbloquea opciones
 para elegir después: no sustituye automáticamente tu equipo. La versión normal
 y shiny comparten nivel y movimientos.
 
+Los movimientos de apoyo incluyen **Rizo Defensa**, **Refugio**, **Defensa Férrea**,
+**Rizo Algodón** y **Armadura Ácida**, que reutilizan Fortaleza, y **Afilar**,
+**Meditación** y **Aullido**, que reutilizan Danza Espada.
+Mantienen las mejoras temporales acumulables del juego, no un sistema nuevo de
+niveles de estadísticas: hasta cinco acumulaciones durante siete segundos,
+con +7 puntos porcentuales de reducción de daño o +13% de Ataque físico por
+acumulación. Los movimientos del mismo atributo comparten esas acumulaciones.
+Cada especie solo desbloquea los
+movimientos y niveles oficiales de su versión de referencia; no se asigna un
+apoyo arbitrario a todos los Pokémon. Afilar y Meditación están implementados,
+pero no tienen aprendices en las versiones actualmente seleccionadas.
+
+**Desarrollo** y **Avivar** acumulan Ataque físico y Ataque Especial a la vez
+(+6,5% de cada uno por acumulación); **Corpulencia** acumula Ataque físico (+6,5%)
+y reducción de daño (+3,5 puntos porcentuales). En todos los niveles del
+movimiento, cada efecto dual tiene la mitad de la potencia del apoyo individual
+correspondiente. Comparten con los otros apoyos las acumulaciones de cada
+atributo, el máximo inicial de cinco y la duración inicial de siete segundos.
+Los apoyos individuales y las mejoras por nivel no cambian. Se adaptan al
+equilibrio existente, sin efectos adicionales por clima ni niveles de
+estadísticas oficiales. Que una especie no tenga apoyos implementados no
+significa que carezca de movimientos de mejora en los juegos oficiales.
+
+Los demás apoyos reutilizan exclusivamente esas mismas mejoras del juego:
+
+| Efecto existente | Nuevos movimientos |
+| --- | --- |
+| Danza Espada: Ataque físico | Afilagarras, Tambor |
+| Maquinación: Ataque Especial | Luminicola |
+| Agilidad: Velocidad | Pulimento, Aligerar, Viento Afín |
+| Fortaleza: reducción de daño | Amnesia, Masa Cósmica, Reserva, Carga, Barrera, Retracción, A Defender |
+| Ataque físico + reducción de daño | Enrosque |
+| Ataque Especial + reducción de daño | Paz Mental |
+| Ataque físico + Velocidad | Cambio de Marcha, Limpieza General |
+| Acua Aro: regeneración | Arraigo, Recuperación, Relajo, Batido, Respiro, Fotosíntesis, Sol Matinal, Luz Lunar, Recogearena, Descanso, Ovocuración, Auxilio |
+
+Cada efecto dual conserva la mitad de la potencia individual: +6,5% de Ataque
+físico o Especial, +5% de Velocidad y +3,5 puntos porcentuales de reducción de
+daño por acumulación inicial. Los apoyos regenerativos copian Acua Aro sin
+curación instantánea: +1,6 PS por segundo por acumulación, hasta cuatro,
+durante ocho segundos, con el mismo efecto visual de burbujas y la misma
+reserva compartida. Los demás apoyos mantienen los tiempos, límites y mejoras
+de su plantilla original.
+
+Solo cambian el nombre, el tipo oficial y, para los duales, la combinación de
+efectos existentes. No añaden precisión, evasión, críticos, costes de PS,
+sueño, bonificaciones climáticas, efectos de equipo ni eliminación de estados,
+trampas o Sustitutos. Barrera, Retracción y Auxilio no tienen aprendices en las
+versiones seleccionadas; no se inventan movimientos para hacerlos disponibles.
+
 ### Evoluciones
 
 Las evoluciones por nivel usan sus **niveles oficiales**: Charmander al 16,
