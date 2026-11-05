@@ -13,7 +13,13 @@ REVISION = "e5b79b2e15d7c50735a945936afd4cd1cfd94eae"
 ROOT = Path(__file__).resolve().parents[1]
 LANGUAGES = {7: "es", 9: "en", 5: "fr", 8: "it", 12: "zh-Hans", 4: "zh-Hant"}
 SUPPORTED = set("""
-tackle quick-attack swords-dance nasty-plot agility harden ember
+tackle quick-attack swords-dance nasty-plot agility harden
+defense-curl withdraw sharpen meditate howl iron-defense cotton-guard acid-armor ember
+growth work-up bulk-up
+hone-claws belly-drum tail-glow rock-polish autotomize tailwind amnesia cosmic-power
+stockpile charge coil calm-mind shift-gear barrier shelter defend-order tidy-up
+ingrain recover slack-off milk-drink roost synthesis morning-sun moonlight
+shore-up rest soft-boiled heal-order
 flamethrower fire-spin heat-wave water-gun bubble hydro-pump aqua-ring
 vine-whip razor-leaf leaf-storm giga-drain thunder-shock discharge thunderbolt
 confusion psybeam psychic sludge mud-shot gust wing-attack
@@ -156,7 +162,16 @@ def build(csv_dir=None):
                 "names": names[key],
                 "support": slug in {
                     "swords-dance", "nasty-plot", "agility", "harden",
-                    "aqua-ring", "dragon-dance",
+                    "aqua-ring", "dragon-dance", "defense-curl", "withdraw",
+                    "sharpen", "meditate", "howl", "iron-defense", "cotton-guard",
+                    "acid-armor", "growth", "work-up", "bulk-up",
+                    "hone-claws", "belly-drum", "tail-glow", "rock-polish",
+                    "autotomize", "tailwind", "amnesia", "cosmic-power",
+                    "stockpile", "charge", "coil", "calm-mind", "shift-gear",
+                    "barrier", "shelter", "defend-order", "tidy-up", "ingrain",
+                    "recover", "slack-off", "milk-drink", "roost", "synthesis",
+                    "morning-sun", "moonlight", "shore-up", "rest",
+                    "soft-boiled", "heal-order",
                 },
             }
             for key, slug in sorted(supported_ids.items())
