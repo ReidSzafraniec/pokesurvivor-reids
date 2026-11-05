@@ -142,6 +142,43 @@ test('host starts the native expedition exactly once after every acknowledgement
   }
 });
 
+test('three Firebase relay clients share town presence and start only after everyone is ready', async () => {
+  const f = party(3, 'relay');
+  for (const c of f.clients) {
+    assert(c.controller.getSnapshot().members.every(m => m.connected && m.pose));
+    assert(!c.controller.getSnapshot().canStart);
+  }
+  f.readyAll();
+  assert(f.clients[0].controller.getSnapshot().canStart);
+  let starts = 0;
+  const result = f.clients[0].controller.requestStart(() => {
+    starts++;
+    const message = { k: 'start', host: 'p0', members: f.roster, townLaunch: f.clients[0].controller.getLaunchToken() };
+    for (const c of f.clients) {
+      assert(c.controller.acceptStart(message));
+      assert(!c.controller.acceptStart(message));
+    }
+  });
+  f.flush();
+  assert.equal(await result, true);
+  assert.equal(starts, 1);
+});
+
+test('switching a connected party to Firebase relay preserves its readiness and heartbeats', () => {
+  const f = party(3);
+  f.readyAll();
+  for (const c of f.clients) {
+    c.game.Net.mode = () => 'relay';
+    for (const member of f.roster) {
+      if (member.uid !== c.uid) for (const onPeer of c.peers) onPeer(member.uid, 'relay');
+    }
+  }
+  assert(f.clients[0].controller.getSnapshot().canStart);
+  f.advance(12000);
+  assert(f.clients[0].controller.getSnapshot().canStart);
+  assert(f.clients.every(c => c.controller.getSnapshot().members.every(m => m.connected)));
+});
+
 test('closing readiness before prepare arrives cancels rather than pulling a player from a menu', async () => {
   const f = party();
   f.readyAll();

@@ -1,0 +1,101 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+    function owns(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+    function nickname(value) {
+      return value is string && value.size() >= 3 && value.size() <= 16
+        && value.matches('[A-Za-z0-9_ñÑáéíóúÁÉÍÓÚ]+');
+    }
+    function pairId(a, b) {
+      return a < b ? a + '_' + b : b + '_' + a;
+    }
+    function friends(a, b) {
+      return get(/databases/$(database)/documents/friendships/$(pairId(a, b))).data.status == 'ok';
+    }
+    match /saves/{uid} {
+      function validSave() {
+        return request.resource.data.keys().hasOnly(['save', 'updatedAt', 'v', 'rev'])
+          && request.resource.data.save is map
+          && request.resource.data.v == 3
+          && request.resource.data.rev is int && request.resource.data.rev > 0
+          && request.resource.data.updatedAt == request.time;
+      }
+      allow read, delete: if owns(uid);
+      allow create: if owns(uid) && validSave() && request.resource.data.rev == 1;
+      allow update: if owns(uid) && validSave()
+        && request.resource.data.rev == resource.data.get('rev', 0) + 1;
+    }
+    match /names/{name} {
+      allow get: if signedIn();
+      allow create: if signedIn() && nickname(name) && name == name.lower()
+        && request.resource.data.keys().hasOnly(['uid'])
+        && request.resource.data.uid == request.auth.uid;
+      allow delete: if signedIn() && resource.data.uid == request.auth.uid;
+    }
+    match /profiles/{uid} {
+      allow get: if signedIn();
+      allow delete: if owns(uid);
+      allow create, update: if owns(uid)
+        && request.resource.data.keys().hasOnly(['name', 'lower', 'at', 'favs', 'title', 'best', 'medals'])
+        && nickname(request.resource.data.name)
+        && request.resource.data.lower == request.resource.data.name.lower()
+        && getAfter(/databases/$(database)/documents/names/$(request.resource.data.lower)).data.uid == uid
+        && request.resource.data.at == request.time
+        && request.resource.data.get('favs', []) is list
+        && request.resource.data.get('favs', []).size() <= 3
+        && request.resource.data.get('medals', []) is list
+        && request.resource.data.get('medals', []).size() <= 8
+        && request.resource.data.get('title', '') is string
+        && request.resource.data.get('title', '').size() <= 40
+        && request.resource.data.get('best', {}) is map
+        && request.resource.data.get('best', {}).keys().hasOnly(['solo', 'group', 'level', 'bosses', 'legends', 'kills', 'medals']);
+    }
+    match /friendships/{pair} {
+      function participant() {
+        return signedIn() && request.auth.uid in resource.data.users;
+      }
+      function valid(data) {
+        return data.keys().hasOnly(['users', 'from', 'to', 'status', 'names', 'at'])
+          && data.from is string && data.to is string && data.from != data.to
+          && data.users is list && data.users.size() == 2
+          && data.from in data.users && data.to in data.users
+          && pair == pairId(data.from, data.to)
+          && data.names is map && data.names.keys().hasOnly(data.users)
+          && nickname(data.names[data.from]) && nickname(data.names[data.to])
+          && data.at is timestamp;
+      }
+      allow read, delete: if participant();
+      allow create: if signedIn() && valid(request.resource.data)
+        && request.resource.data.from == request.auth.uid
+        && request.resource.data.status == 'pending'
+        && request.resource.data.at == request.time;
+      allow update: if participant() && valid(request.resource.data)
+        && resource.data.to == request.auth.uid
+        && resource.data.status == 'pending'
+        && request.resource.data.status == 'ok'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'names', 'at'])
+        && request.resource.data.names.diff(resource.data.names).affectedKeys().hasOnly([request.auth.uid]);
+    }
+    match /inv/{invitation} {
+      allow read: if signedIn() && resource.data.to == request.auth.uid;
+      allow delete: if signedIn() && request.auth.uid in [resource.data.from, resource.data.to];
+      allow create, update: if signedIn()
+        && request.resource.data.keys().hasOnly(['from', 'to', 'room', 'name', 'at'])
+        && request.resource.data.from == request.auth.uid
+        && request.resource.data.to is string
+        && invitation == request.resource.data.to + '_' + request.auth.uid
+        && request.resource.data.room == request.auth.uid
+        && nickname(request.resource.data.name)
+        && request.resource.data.at == request.time
+        && friends(request.auth.uid, request.resource.data.to);
+    }
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

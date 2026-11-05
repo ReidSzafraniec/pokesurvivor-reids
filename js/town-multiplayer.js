@@ -71,8 +71,12 @@
       return { k, v: VERSION, room: room.id, session, revision, seq: ++sequence, ...data };
     }
 
+    function isConnected(mode) {
+      return mode === 'direct' || mode === 'relay';
+    }
+
     function send(to, k, data) {
-      if (!room || room.lost || net.mode(to) !== 'direct' || net.busy(to)) return false;
+      if (!room || room.lost || !isConnected(net.mode(to)) || net.busy(to)) return false;
       net.send(to, packet(k, data));
       return true;
     }
@@ -197,7 +201,7 @@
     }
 
     function peerChanged(peer, mode) {
-      if (disposed || !room || mode === 'direct' || !members.has(peer)) return;
+      if (disposed || !room || isConnected(mode) || !members.has(peer)) return;
       if (room.isHost) {
         const m = members.get(peer);
         if (m.connected) {
@@ -216,14 +220,14 @@
       if (room.isHost) {
         for (const m of members.values()) {
           if (m.uid !== uid && m.connected &&
-              (room.lost || net.mode(m.uid) !== 'direct' || now() - m.lastSeen > TIMEOUT)) {
+              (room.lost || !isConnected(net.mode(m.uid)) || now() - m.lastSeen > TIMEOUT)) {
             m.connected = false;
             resetReady(true);
           }
         }
         publish();
       } else {
-        if (room.lost || net.mode(room.host) !== 'direct' || (session && now() - lastHost > TIMEOUT)) disconnectHost();
+        if (room.lost || !isConnected(net.mode(room.host)) || (session && now() - lastHost > TIMEOUT)) disconnectHost();
         if (!session) {
           if (now() - lastSend >= HEARTBEAT && send(room.host, 'town-hello', { nonce })) lastSend = now();
         } else if (pose && (dirty || now() - lastSend >= HEARTBEAT)) {
@@ -251,7 +255,7 @@
       if (!launch || !room?.isHost || launch.acks.size !== members.size) return;
       const pending = launch;
       if (now() >= pending.deadline || !menuOpen || !ready || game.Game.state !== 'ui' || room.lost ||
-          [...members.values()].some(m => !m.connected || !m.ready || (m.uid !== uid && net.mode(m.uid) !== 'direct'))) {
+          [...members.values()].some(m => !m.connected || !m.ready || (m.uid !== uid && !isConnected(net.mode(m.uid))))) {
         cancelLaunch(true);
         return;
       }
@@ -280,7 +284,7 @@
         warn('Invalid or incompatible town packet');
         return;
       }
-      if (net.mode(from) !== 'direct') return;
+      if (!isConnected(net.mode(from))) return;
       if (room.isHost) {
         const m = members.get(from);
         if (message.k === 'town-hello') {

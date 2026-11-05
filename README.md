@@ -331,6 +331,115 @@ node --test tests/*.test.cjs
 
 ## Guardado en la nube y publicación
 
+### Hosting this fork for friends (Firebase Spark, no billing)
+
+This fork needs **your own Firebase project**. It does not use the original
+developer's accounts, saves, room server, TURN service, or verified leaderboard.
+The existing game supports up to four people in one co-op room. Everyone can
+create an account; knowing the website URL is not an access restriction.
+
+The selected project is `pokesurvivor-evolution` in `.firebaserc`. Change that
+selection if you use another project. Its public Web app settings and default
+Realtime Database URL are in `js/hosting-config.js`. Publishing is blocked if
+these settings are missing or invalid.
+
+1. In the [Firebase console](https://console.firebase.google.com/), create/select
+   the project on **Spark**. Do not enable billing. Register a **Web app**.
+   Analytics and Cloud Storage are not needed.
+2. Under **Build > Authentication**, enable **Email/Password**. The existing game
+   turns usernames into synthetic email addresses ending in `players.invalid`;
+   players still enter a username and password, not a real email address.
+   These accounts cannot receive email verification or password-reset mail.
+   Use a new password rather than reusing one from another website.
+3. Create **Cloud Firestore**, **Standard edition**, with the **default database**
+   in production/locked mode. Create **Realtime Database** in locked mode.
+   Choose nearby regions. Do not select test-mode rules; the repository contains
+   the rules that the game needs.
+4. If using another project, update `js/hosting-config.js` with its `firebaseConfig`
+   object from **Project settings > General > Your apps**. Include `apiKey`,
+   `authDomain`, `projectId`, `appId`, and the actual `databaseURL` from
+   **Realtime Database > Data**. Other public Web app settings may be retained.
+   The supported database is the project's default Realtime Database, not a
+   separately named instance. Never put service-account JSON, private keys,
+   passwords, or CLI tokens in this file.
+5. In **Authentication > Settings > Authorized domains**, ensure your project's
+   `PROJECT_ID.web.app` and `PROJECT_ID.firebaseapp.com` domains are authorized.
+   Google sign-in is optional: enable its provider if you want to use that
+   button; otherwise use username/password. Add `localhost` and `127.0.0.1`
+   only if testing real cloud accounts locally.
+6. Install **Node.js 22+**, then run from the repository directory:
+
+   ```powershell
+   npm ci
+   npx firebase login
+   npx firebase use pokesurvivor-evolution
+   npm test
+   npm run test:rules
+   npm run deploy
+   ```
+
+   The rules tests also require **Java 21+** on PATH. The CLI deploys database
+   rules/indexes and the static website, not a paid server or Cloud Functions.
+   Complete any console/API setup the CLI explicitly requests. Hosting staging
+   is repeated by the Hosting predeploy hook, so direct `firebase deploy`
+   cannot bypass the client configuration check. Do not publish the repository
+   root manually.
+7. Share the **Hosting URL printed by the successful deploy**. Each person
+   creates a new account, chooses a partner, and uses the town's **Friends**
+   phone to add the others by nickname. Accept friend requests, then have one
+   player invite both friends into the same room. All three share the town.
+   Open the expedition room and have everyone, including the host, press
+   **Ready up**; the host can start once all current members are connected
+   and ready. Closing that room clears your readiness.
+
+For updates, run `npm run deploy` again. `npm run preview` stages the site and
+starts a localhost-only Hosting emulator; it uses your configured real backend
+unless you explicitly use a local emulator configuration. To test Auth,
+Firestore, and RTDB entirely locally, use a `demo-` project, a matching Web app
+configuration with `emulator: true`, and the emulators on ports 9099/8080/9000.
+The production staging command deliberately rejects `emulator: true`.
+
+The staging script publishes only website files and required credits/licenses
+to `dist`; it excludes `.git`, tests, tools, backend configuration, and the
+original `CNAME`. Keep attribution and the noncommercial license. Standard
+directory pages such as `/en/` are supported; there is no SPA catch-all rewrite
+that turns missing scripts into HTML responses.
+
+**Co-op connectivity:** direct WebRTC uses public STUN. If a browser cannot
+connect directly, shared-town presence, ready-up acknowledgements, and
+gameplay use the project's Realtime Database inboxes. Gameplay uses a lower
+update rate on relay. The same readiness and launch checks apply to both
+transports. Room membership and seats are published atomically, with
+rules enforcing a maximum of four. The host releases departed lobby seats;
+active games retain their existing reconnect behavior. Relay can add latency and consume significantly
+more database bandwidth. There is no paid TURN dependency. WebRTC can disclose
+players' IP addresses to one another; play with people you trust.
+
+**Quota limits:** Spark does not bill for overages, but exhausted quotas can
+interrupt hosting, signup, saves, or co-op. Watch Hosting transfer, Firestore
+reads/writes, and Realtime Database downloads in the console, especially with
+public signup or relay sessions. See
+[Hosting quotas](https://firebase.google.com/docs/hosting/usage-quotas-pricing)
+and [RTDB billing](https://firebase.google.com/docs/database/usage/billing).
+This setup is not unlimited hosting or an anti-abuse service.
+
+**Troubleshooting:** a setup message on startup means the client settings or
+host do not match. Failed login may mean the Auth provider is disabled;
+permission errors usually mean rules have not been deployed to the same
+project. A successful local account is not proof of cloud connectivity. New
+hosted accounts do not import original-site saves. If an old build persists,
+reload first, then unregister its service worker in browser developer tools.
+Do not clear site storage without a backup of any local saves.
+
+**Acceptance before sharing:** use three separate signed-in browser sessions
+to check invitations, joining, shared-town movement, everyone's readiness,
+starting, ending a run, and persistence after reload. Also check a relay
+session and connections from different home
+networks. Automated local tests cannot prove your friends' remote connections.
+
+The upstream feature description below is retained for context; the verified
+public ranking is deliberately unavailable in this independently hosted fork.
+
 - **Base de datos (Firebase):** cuentas con nombre + contraseña o Google, y la
   partida se sigue en cualquier ordenador.
   Las cuentas locales guardan sólo en el navegador; los invitados no guardan.

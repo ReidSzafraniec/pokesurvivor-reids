@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 
-function party(count = 4) {
+function party(count = 4, mode = 'direct') {
   const path = require('node:path').join(__dirname, '..', '..', 'js', 'town-multiplayer.js');
   assert(fs.existsSync(path), 'The shared-town controller must exist');
   const { create } = require(path);
@@ -26,7 +26,7 @@ function party(count = 4) {
         on: fn => social.add(fn), off: fn => social.delete(fn)
       },
       Net: {
-        mode: peer => blocked.has(uid) || blocked.has(peer) ? 'failed' : 'direct',
+        mode: peer => blocked.has(uid) || blocked.has(peer) ? 'failed' : mode,
         busy: () => false,
         on: fn => network.add(fn), off: fn => network.delete(fn),
         onPeer: fn => peers.add(fn),
