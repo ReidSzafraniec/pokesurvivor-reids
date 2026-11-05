@@ -56,6 +56,8 @@ canvas { image-rendering: pixelated; image-rendering: crisp-edges; }
 .town-heading { top: 76px; align-items: flex-start; }
 .town-heading h1 { margin: 0; font-size: 24px; color: #fff6db; }
 .town-heading p, .town-footer p { margin: 4px 0 0; }
+.town-controls { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; max-width: 52%; }
+#town-connection { width: 100%; text-align: right; font-size: 12px; }
 .town-heading > div, .town-caption, .town-door {
   background: #163c3bd9; border: 2px solid #d5d9ad; border-radius: 6px; padding: 8px 12px;
 }
@@ -66,7 +68,7 @@ canvas { image-rendering: pixelated; image-rendering: crisp-edges; }
 .town-door { text-align: center; min-width: 190px; max-width: 250px; }
 .town-door p { margin: 0 0 6px; font-size: 14px; color: #fff0ac; }
 .town button { pointer-events: auto; }
-.town #town-menu, .town #town-interact { font-size: 16px; padding: 8px 16px; min-height: 44px; }
+.town #town-menu, .town #town-party, .town #town-interact { font-size: 16px; padding: 8px 16px; min-height: 44px; }
 .town-pad { display: none; position: absolute; left: 20px; bottom: 24px; gap: 5px; }
 .town-pad button { width: 48px; height: 44px; padding: 0; touch-action: none; }
 .town-pad button:first-child { grid-column: 2; }

@@ -125,10 +125,27 @@ mismo sitio; si la abriste desde el menú, vuelves a la lista.
 
 El pueblo no cambia tus monedas, colección, entrenamiento ni guardado. No da
 XP por caminar y la posición sólo dura durante la sesión de esa cuenta.
-Los amigos y las partidas cooperativas funcionan como antes; el pueblo no
-es una sala multijugador. Al terminar una partida individual, primero se
-mantienen los resultados, la XP permanente y las evoluciones, y después se
-vuelve al pueblo.
+Al crear o aceptar una sala cooperativa, hasta **cuatro jugadores** comparten
+este mismo pueblo. Cada uno mueve su Pokémon y su propia cámara; los demás
+jugadores no bloquean el paso. Las puertas abren únicamente los menús de quien
+interactúa, con sus propias monedas, colección, mochila y entrenamiento.
+Los demás pueden seguir caminando aunque el anfitrión tenga un menú abierto.
+La posición y el aspecto se sincronizan durante la sesión; no se comparten
+guardados ni compras.
+
+El botón **Preparar grupo**, la salida norte y **Jugar** abren la sala para
+invitar amigos y preparar la siguiente expedición. Cada jugador, incluido el
+anfitrión, debe pulsar **Prepararme**. **Cerrar esa sala cancela tu preparado**:
+al volver hay que prepararse otra vez. Si alguien entra, sale o se reconecta,
+se cancela el preparado de todos. El anfitrión puede empezar cuando todos los
+miembros actuales estén conectados y preparados, con un mínimo de dos jugadores.
+Si la conexión o la confirmación de inicio falla, se muestra el problema y
+hay que volver a prepararse. Todos deben usar una versión compatible del juego.
+
+Al terminar una partida, primero se mantienen los resultados, la XP permanente
+y las evoluciones, y después se vuelve al pueblo, compartido si sigues en la
+sala. Salir de la sala no cambia tu progreso; si sale el anfitrión, la sala se
+cierra como antes.
 
 ## Entrenamiento persistente
 

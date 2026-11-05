@@ -1,6 +1,8 @@
 (function () {
   'use strict';
 
+  const Multiplayer = typeof module === 'object' && module.exports ?
+    require('./town-multiplayer.js') : window.PSTownMultiplayer;
   const WIDTH = 1280, HEIGHT = 1024, RADIUS = 10, SPEED = 170;
   const SPAWN = Object.freeze({ x: 640, y: 568 });
   const BUILDINGS = Object.freeze([
@@ -128,6 +130,10 @@
     let position = { ...SPAWN }, account, avatar, appearance = '', shortcut = false;
     let frame = null, last = null, focused = true, initialized = false, currentDoor;
     let scenery, layers = [], scale = 1, viewWidth = 0, viewHeight = 0;
+    let walking = false, arrivalRoom = null, lobbyInitialized = false;
+    const remoteAvatars = new Map();
+    const multiplayer = Multiplayer.create(game, host, { walkable });
+    let partyState = multiplayer.getSnapshot();
 
     game.I18n.add({
       'Villa Compa\u00f1era': 'Partner Village',
@@ -148,7 +154,28 @@
       'Mover abajo': 'Move down',
       'Mover a la izquierda': 'Move left',
       'Mover a la derecha': 'Move right',
-      'Pueblo explorable': 'Walkable town'
+      'Pueblo explorable': 'Walkable town',
+      'Preparar grupo': 'Ready up',
+      'Preparado': 'Ready',
+      'No preparado': 'Not ready',
+      'Prepararme': 'Mark ready',
+      'Cancelar preparado': 'Unready',
+      'Iniciando expedici\u00f3n...': 'Starting expedition...',
+      'Grupo': 'Party',
+      'Conectando al pueblo...': 'Connecting to town...',
+      'Reconectando al pueblo...': 'Reconnecting to town...',
+      'Todos deben prepararse. Cerrar esta sala cancela tu preparado.':
+        'Everyone must ready up. Closing this menu unreadies you.',
+      'Esperando conexi\u00f3n compatible. Si no conecta, actualizad el juego y volved a entrar.':
+        'Waiting for compatible connections. If this persists, update the game and rejoin.',
+      'No se pudo iniciar. Todos deben volver a prepararse.':
+        'Could not start. Everyone needs to ready up again.',
+      'Espera la conexi\u00f3n y abre la sala para prepararte.':
+        'Wait for the connection and open the ready-up menu.',
+      'No se pudo comunicar tu estado. Int\u00e9ntalo de nuevo.':
+        'Could not send your ready status. Please try again.',
+      'Todos los jugadores deben estar conectados y preparados.':
+        'All players must be connected and ready.'
     });
 
     function visible(element) {
@@ -174,9 +201,79 @@
 
     function stop() {
       clearInput();
+      walking = false;
       if (frame !== null) host.cancelAnimationFrame(frame);
       frame = null;
       last = null;
+      publishPresence();
+    }
+
+    function publishPresence() {
+      if (!initialized || !avatar || !game.DB.save?.partner) return;
+      const inUI = game.Game.state === 'ui' && !game.Coop.active;
+      const readyMenu = inUI && visible($('scr-lobby'));
+      multiplayer.setReadyMenuOpen(readyMenu);
+      const location = !inUI ? 'away' : readyMenu ? 'ready' :
+        !visible(screen) ? 'away' : blocked() ? 'menu' : 'town';
+      multiplayer.updateLocal({
+        ...position, dir: avatar.dir || 0, walking: location === 'town' && walking,
+        dex: avatar.dex, shiny: !!avatar.shiny, skin: avatar.skin || null, location
+      });
+    }
+
+    function setText(element, value) {
+      if (element.textContent !== value) element.textContent = value;
+    }
+
+    function setHidden(element, hidden) {
+      if (element.classList.contains('hidden') !== hidden) {
+        if (hidden) element.classList.add('hidden');
+        else element.classList.remove('hidden');
+      }
+    }
+
+    function refreshPartyUI() {
+      if (!initialized) return;
+      const inRoom = !!game.Social.room;
+      setHidden($('town-party'), !inRoom);
+      setHidden($('town-connection'), !inRoom);
+      setText($('town-connection'), partyState.connection === 'connected' ?
+        text('Grupo') + ': ' + partyState.members.length + '/4' :
+        text(partyState.connection === 'reconnecting' ? 'Reconectando al pueblo...' : 'Conectando al pueblo...'));
+      if (!lobbyInitialized) return;
+      const connected = partyState.connection === 'connected';
+      $('lobby-ready').disabled = !connected || partyState.launching;
+      $('lobby-start').disabled = !partyState.canStart;
+      $('scr-lobby').inert = partyState.launching;
+      setText($('lobby-ready'), text(partyState.ready ? 'Cancelar preparado' : 'Prepararme'));
+      const summary = partyState.members.map(m => m.name + ': ' +
+        text(m.ready ? 'Preparado' : 'No preparado')).join(' \u00b7 ');
+      setText($('lobby-readiness'), summary + (summary ? ' ' : '') + text(partyState.launching ?
+        'Iniciando expedici\u00f3n...' : connected ?
+          'Todos deben prepararse. Cerrar esta sala cancela tu preparado.' :
+          'Esperando conexi\u00f3n compatible. Si no conecta, actualizad el juego y volved a entrar.'));
+    }
+
+    function updateRemoteAvatars(state) {
+      const present = new Set();
+      state.members.forEach((member, index) => {
+        if (member.uid === game.Social.uid || !member.connected || !member.pose || member.pose.location === 'away') return;
+        present.add(member.uid);
+        const p = member.pose, signature = [p.dex, p.shiny, p.skin].join(':');
+        let remote = remoteAvatars.get(member.uid);
+        if (!remote || remote.appearance !== signature) {
+          const meta = game.Sprites.animMeta(p.dex, 'Idle', p.shiny);
+          const size = meta ? Math.min(1, 36 / meta.w, 36 / meta.h) : 1;
+          const sprite = new game.Sprites.Animator(p.dex, size, p.shiny);
+          sprite.skin = p.skin;
+          remote = { sprite, appearance: signature, x: p.x, y: p.y };
+          remoteAvatars.set(member.uid, remote);
+        }
+        Object.assign(remote, { target: p, name: member.name, color: game.Coop.COLORS[index] });
+        remote.sprite.dir = p.dir;
+        remote.sprite.loop(p.walking ? 'Walk' : 'Idle');
+      });
+      for (const id of remoteAvatars.keys()) if (!present.has(id)) remoteAvatars.delete(id);
     }
 
     function syncAccount() {
@@ -624,24 +721,36 @@
         ctx.lineWidth = 2;
         if (door.kind === 'route') ctx.strokeRect(door.x + 4, door.y + 32, door.w - 8, door.h);
       }
-      const drawAvatar = () => {
+      const me = partyState.members.find(m => m.uid === game.Social.uid);
+      const actors = [
+        { x: position.x, y: position.y, sprite: avatar, name: me?.name,
+          color: game.Coop.COLORS[partyState.members.indexOf(me)] },
+        ...remoteAvatars.values()
+      ].sort((a, b) => a.y - b.y);
+      const drawAvatar = actor => {
         ctx.fillStyle = '#203e4055';
         ctx.beginPath();
-        ctx.ellipse(position.x, position.y + 2, 15, 5, 0, 0, Math.PI * 2);
+        ctx.ellipse(actor.x, actor.y + 2, 15, 5, 0, 0, Math.PI * 2);
         ctx.fill();
-        avatar.draw(ctx, Math.round(position.x), Math.round(position.y));
-      };
-      let drawn = false;
-      for (const layer of layers) {
-        if (!drawn && layer.depth > position.y) {
-          drawAvatar();
-          drawn = true;
+        actor.sprite.draw(ctx, Math.round(actor.x), Math.round(actor.y));
+        if (actor.name) {
+          ctx.font = 'bold 12px Pixelify, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.lineWidth = 3;
+          ctx.strokeStyle = '#163c3b';
+          ctx.strokeText(actor.name, Math.round(actor.x), Math.round(actor.y) - 28);
+          ctx.fillStyle = actor.color;
+          ctx.fillText(actor.name, Math.round(actor.x), Math.round(actor.y) - 28);
         }
+      };
+      let actorIndex = 0;
+      for (const layer of layers) {
+        while (actorIndex < actors.length && layer.depth > actors[actorIndex].y) drawAvatar(actors[actorIndex++]);
         if (layer.x + layer.w < left || layer.x > left + viewWidth ||
             layer.y + layer.h < top || layer.y > top + viewHeight) continue;
         ctx.drawImage(layer.image, layer.x, layer.y);
       }
-      if (!drawn) drawAvatar();
+      while (actorIndex < actors.length) drawAvatar(actors[actorIndex++]);
       if (currentDoor !== door) {
         currentDoor = door;
         if (door) $('town-action').classList.remove('hidden');
@@ -670,16 +779,27 @@
       const elapsed = last === null ? 0 : (now - last) / 1000;
       last = now;
       const next = move(position, { x, y }, elapsed);
-      const walking = next.x !== position.x || next.y !== position.y;
+      walking = next.x !== position.x || next.y !== position.y;
       if (walking) avatar.dir = direction(x, y);
       avatar.loop(walking ? 'Walk' : 'Idle');
       avatar.update(Math.min(elapsed, 0.1));
       position = next;
+      for (const remote of remoteAvatars.values()) {
+        const blend = Math.min(1, Math.max(0, elapsed) * 12);
+        const x = remote.x + (remote.target.x - remote.x) * blend;
+        const y = remote.y + (remote.target.y - remote.y) * blend;
+        if (walkable(x, y)) { remote.x = x; remote.y = y; }
+        else { remote.x = remote.target.x; remote.y = remote.target.y; }
+        remote.sprite.update(Math.min(elapsed, 0.1));
+      }
+      publishPresence();
       draw();
       frame = host.requestAnimationFrame(tick);
     }
 
     function synchronize() {
+      publishPresence();
+      refreshPartyUI();
       const running = active();
       screen.inert = !running;
       if (!running) return stop();
@@ -712,18 +832,28 @@
       game.MenuUI.open();
     }
 
+    function openParty() {
+      if (!game.Social.room || partyState.launching) return;
+      arrivalRoom = game.Social.room;
+      shortcut = false;
+      game.LobbyUI.open();
+    }
+
     function enter() {
       if (!active()) return;
       const door = nearby(position);
       if (!door) return;
       stop();
       shortcut = false;
-      actions.get(door.id).click();
+      if (door.id === 'play' && game.Social.room) openParty();
+      else actions.get(door.id).click();
       synchronize();
     }
 
     const originalShow = game.UI.show;
     game.UI.show = function (id, ...args) {
+      if (partyState.launching && id !== 'scr-lobby') return;
+      if (id !== 'scr-lobby') multiplayer.setReadyMenuOpen(false);
       stop();
       syncAccount();
       originalShow.call(this, id, ...args);
@@ -739,10 +869,13 @@
     game.UI.hideAll = function (...args) {
       stop();
       screen.classList.add('hidden');
-      return originalHideAll.apply(this, args);
+      const result = originalHideAll.apply(this, args);
+      publishPresence();
+      return result;
     };
     const originalHide = game.UI.hide;
     game.UI.hide = function (...args) {
+      if (partyState.launching && args[0] === 'scr-lobby') return;
       const result = originalHide.apply(this, args);
       synchronize();
       return result;
@@ -757,6 +890,52 @@
     game.Flow.goMenu = function (...args) {
       shortcut = false;
       return originalGoMenu.apply(this, args);
+    };
+    const originalAfterRun = game.Flow.afterRun;
+    game.Flow.afterRun = function (...args) {
+      const result = originalAfterRun.apply(this, args);
+      if (game.Social.room && game.Game.state === 'ui') returnToTown();
+      return result;
+    };
+    const originalStartCoop = game.Flow.startCoop;
+    game.Flow.startCoop = function (message, ...args) {
+      if (!multiplayer.acceptStart(message)) {
+        game.UI.toast(text('Todos los jugadores deben estar conectados y preparados.'), 3500);
+        return;
+      }
+      shortcut = false;
+      return originalStartCoop.call(this, message, ...args);
+    };
+    const originalBroadcast = game.Net.broadcast;
+    game.Net.broadcast = function (message, ...args) {
+      if (message?.k === 'start') {
+        const proof = multiplayer.getLaunchToken();
+        if (!proof) return;
+        message.townLaunch = proof;
+      }
+      return originalBroadcast.call(this, message, ...args);
+    };
+    const originalLobbyOpen = game.LobbyUI.open;
+    game.LobbyUI.open = function (...args) {
+      const arrival = game.Social.room && arrivalRoom !== game.Social.room;
+      arrivalRoom = game.Social.room;
+      const result = originalLobbyOpen.apply(this, args);
+      if (arrival) returnToTown();
+      synchronize();
+      return result;
+    };
+    const originalLobbyInit = game.LobbyUI.init;
+    game.LobbyUI.init = function (...args) {
+      const result = originalLobbyInit.apply(this, args);
+      const start = $('lobby-start').onclick;
+      $('lobby-start').onclick = () => multiplayer.requestStart(() => start.call($('lobby-start')));
+      $('lobby-menu').onclick = returnToTown;
+      $('lobby-ready').onclick = () => multiplayer.setReady(!partyState.ready);
+      setText($('lobby-menu'), text('Volver al pueblo'));
+      lobbyInitialized = true;
+      game.Social.on(refreshPartyUI);
+      refreshPartyUI();
+      return result;
     };
     const originalInit = game.MenuUI.init;
     game.MenuUI.init = function (...args) {
@@ -791,11 +970,14 @@
       });
       canvas.setAttribute('aria-label', text('Pueblo explorable'));
       $('town-menu').onclick = openMenu;
+      $('town-party').onclick = openParty;
+      setText($('town-party'), text('Preparar grupo'));
       $('town-interact').onclick = enter;
       $('menu-town').textContent = text('Volver al pueblo');
       $('menu-town').onclick = returnToTown;
       makeScenery();
       initialized = true;
+      refreshPartyUI();
     };
 
     host.addEventListener('keydown', event => {
@@ -848,13 +1030,20 @@
     });
     const observer = new host.MutationObserver(() => {
       if (visible(screen)) synchronize();
+      else { publishPresence(); refreshPartyUI(); }
     });
     observer.observe(doc.body, { attributes: true, attributeFilter: ['class'], childList: true, subtree: true });
     game.DB.onSync(() => {
       syncAccount();
       synchronize();
     });
-    game.Town = { open: returnToTown };
+    multiplayer.subscribe(state => {
+      partyState = state;
+      updateRemoteAvatars(state);
+      refreshPartyUI();
+      if (initialized && visible(screen)) draw();
+    });
+    game.Town = { open: returnToTown, openParty, multiplayer };
     return game.Town;
   }
 
