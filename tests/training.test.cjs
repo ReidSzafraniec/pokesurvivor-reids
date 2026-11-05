@@ -887,6 +887,9 @@ test('startup asset failures show a retry instead of leaving the loading screen 
   handler({ target: {}, filename: '/js/town.js?v=town-1' });
   assert.match(replacements[0].textContent, /Could not load/);
   replacements = undefined;
+  handler({ target: { src: '/js/town-multiplayer.js?v=shared-town-1' } });
+  assert.match(replacements[0].textContent, /Could not load/);
+  replacements = undefined;
   hidden = true;
   handler({ target: {}, filename: '/js/training.js' });
   assert.equal(replacements, undefined);

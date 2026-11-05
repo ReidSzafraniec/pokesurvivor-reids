@@ -83,7 +83,7 @@
   ]
 }
 </script>
-<link rel="stylesheet" href="css/style.css?v=menu-evolution-1">
+<link rel="stylesheet" href="css/style.css?v=shared-town-menu-1">
 <script src="js/core/locales.js?v=ba2ae89740"></script>
 <script src="js/noframe.js"></script>
 </head>
@@ -94,7 +94,7 @@
   <canvas id="town-map" tabindex="0" aria-describedby="town-help town-nearby"></canvas>
   <div class="town-heading">
     <div><h1 id="town-title" data-town-text="Villa Compañera"></h1><p data-town-text="Tu próxima aventura empieza aquí."></p></div>
-    <button id="town-menu" class="btn" data-town-text="Menú"></button>
+    <div class="town-controls"><span id="town-connection" class="hidden" role="status"></span><button id="town-party" class="btn hidden"></button><button id="town-menu" class="btn" data-town-text="Menú"></button></div>
   </div>
   <div class="town-footer">
     <div class="town-caption"><b id="town-partner" translate="no"></b><p id="town-help" data-town-text="WASD / flechas: moverse · E / Espacio: interactuar · M / Esc: menú"></p></div>
@@ -387,8 +387,10 @@
     <h3 id="lobby-inv-title" style="margin:14px 0 6px">Invitar amigos</h3>
     <div id="lobby-invite" class="fr-list"></div>
     <div class="row" style="margin-top:14px">
+      <button id="lobby-ready" class="btn grow" type="button"></button>
       <button id="lobby-start" class="btn gold grow">Empezar partida</button>
     </div>
+    <p id="lobby-readiness" class="note" aria-live="polite" translate="no"></p>
     <p class="note" id="lobby-note"></p>
   </div>
 </section>
@@ -714,7 +716,8 @@
 
 <script defer src="js/data/learnsets.js?v=status-buffs-4"></script>
 <script defer src="js/training.js?v=training-buffs-3"></script>
-<script defer src="js/town.js?v=town-6"></script>
+<script defer src="js/town-multiplayer.js?v=shared-town-1"></script>
+<script defer src="js/town.js?v=shared-town-1"></script>
 <script defer src="js/onboarding.js?v=starter-regions-1"></script>
 <script defer src="js/app.min.js?v=48bf7a129f"></script>
 </body>
