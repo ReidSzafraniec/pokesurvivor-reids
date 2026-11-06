@@ -103,7 +103,14 @@
       },
       ranking() {
         return {
-          PERIODS: [], periodIds: () => ({}), isAdmin: () => false,
+          PERIODS: [],
+          periodIds(now = new Date()) {
+            const day = now.toISOString().slice(0, 10);
+            const monday = new Date(day + 'T00:00:00Z');
+            monday.setUTCDate(monday.getUTCDate() - (monday.getUTCDay() + 6) % 7);
+            return { d: day, w: monday.toISOString().slice(0, 10) };
+          },
+          isAdmin: () => false,
           mySeal: () => null, newSeal() {}, beat() {}, runStarted() {},
           submitSolo() {}, submitGroup() {}, removeMine: async () => {}
         };

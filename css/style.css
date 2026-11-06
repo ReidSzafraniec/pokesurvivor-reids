@@ -16,6 +16,31 @@
   font-display: block;
 }
 
+.tutorial-panel {
+  position: fixed;
+  top: max(10px, env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(560px, calc(100% - 24px));
+  padding: 12px 16px;
+  z-index: 130;
+  pointer-events: none;
+}
+.tutorial-panel h2 { font-size: 18px; margin: 0 0 4px; }
+.tutorial-panel p { margin: 0 0 8px; font-size: 14px; }
+.tutorial-panel button { pointer-events: auto; }
+.training-initial { padding: 16px; }
+#scr-training.initial-build .training-traits,
+#scr-training.initial-build > .box > p:not(#training-initial):not(#training-guest) { display: none; }
+#scr-training.initial-build .training-head label,
+#scr-training.initial-build #training-mon { display: none; }
+@media (max-height: 600px) {
+  .tutorial-panel { left: 12px; transform: none; width: min(300px, calc(100% - 24px)); padding: 8px; }
+  .tutorial-panel.tutorial-choosing { width: min(230px, max(120px, calc((100vw - 330px) / 2 - 16px))); }
+  .tutorial-panel h2 { font-size: 15px; }
+  .tutorial-panel p { font-size: 12px; }
+}
+
 :root {
   --ink: #ffffff;
   --muted: #b9cbf0;

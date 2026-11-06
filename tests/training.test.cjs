@@ -15,6 +15,160 @@ function atLevel(save, dex, level) {
   save.training[dex].xp = training.xpAt(dex, level);
 }
 
+test('initial build reuses move slots, locks navigation and finishes only once', () => {
+  const { model, context, save } = installFixture();
+  assert.equal(typeof model.openInitialBuild, 'function');
+  const nodes = new Map();
+  function node() {
+    const classes = new Set();
+    return { children: [], value: '', textContent: '', disabled: false,
+      classList: { add: v => classes.add(v), remove: v => classes.delete(v),
+        contains: v => classes.has(v), toggle(v, on) { on ? classes.add(v) : classes.delete(v); } },
+      replaceChildren(...children) { this.children = children; },
+      append(...children) { this.children.push(...children); }, setAttribute() {}, focus() {} };
+  }
+  const originalDocument = global.document, originalOption = global.Option;
+  global.document = { getElementById(id) {
+    if (!nodes.has(id)) nodes.set(id, node());
+    return nodes.get(id);
+  }, createElement: node };
+  global.Option = class { constructor(label, value) { this.textContent = label; this.value = value; } };
+  try {
+    context.T = v => v;
+    context.I18n.locale = 'en';
+    context.U.esc = String;
+    context.UI.isOpen = () => false;
+    context.UI.sprite = () => {};
+    context.Game.state = 'ui';
+    context.Social = { room: null };
+    context.SPRITE_META = {};
+    context.Shop = { count: () => 0 };
+    context.Skins = { worn: () => null };
+    context.Icons = { html: () => '' };
+    context.Mons.abilityOf = () => ({ id: null });
+    context.Mons.abilityChoices = () => [];
+    context.DB.user = 'test-account';
+    save.partner = 25;
+    model.ensureLevel(save, 25, 5);
+    let completed = 0;
+    model.openInitialBuild(25, () => completed++);
+    assert.equal(nodes.get('training-mon').disabled, true);
+    assert(nodes.get('training-back').classList.contains('hidden'));
+    assert(nodes.get('training-tab-perks').disabled);
+    assert(!nodes.get('training-initial').classList.contains('hidden'));
+    assert(!nodes.get('training-finish').classList.contains('hidden'));
+    assert.equal(nodes.get('training-slots').children.length, 4);
+    const finish = nodes.get('training-finish').onclick;
+    finish(); finish();
+    assert.equal(completed, 1);
+    model.open(25);
+    assert(!nodes.get('training-back').classList.contains('hidden'));
+    assert(!nodes.get('training-tab-perks').disabled);
+    assert(nodes.get('training-finish').classList.contains('hidden'));
+  } finally { global.document = originalDocument; global.Option = originalOption; }
+});
+
+test('ensureLevel validates the level and ownership before changing the save', () => {
+  const save = saveFor(4), original = JSON.stringify(save);
+  for (const level of [0, 101, -1, 1.5, NaN, Infinity, '5', undefined]) {
+    assert.throws(() => training.ensureLevel(save, 4, level), RangeError);
+    assert.equal(JSON.stringify(save), original);
+  }
+  assert.throws(() => training.ensureLevel(save, 7, 5), /owned/);
+  assert.throws(() => training.ensureLevel(save, 9999, 5), /Unknown Pokemon/);
+  assert.equal(JSON.stringify(save), original);
+  assert.equal(training.ensureLevel(save, 4, 1).level, 1);
+  assert.equal(training.ensureLevel(save, 4, 100).level, 100);
+});
+
+test('ensureLevel uses every species official growth floor without changing ordinary starting levels', () => {
+  assert.equal(training.START_LEVEL, 1);
+  for (const dex of Object.keys(data.pokemon)) {
+    const save = saveFor(dex);
+    assert.equal(training.state(save, dex).level, 1);
+    const result = training.ensureLevel(save, dex, 5);
+    assert.equal(result.xp, training.xpAt(dex, 5), dex);
+    assert.equal(result.level, 5, dex);
+    assert.equal(save.training[dex].updated, 0);
+    assert(result.loadout.some(id => id === 'struggle' || !data.moves[id].support), dex);
+    assert.deepEqual(training.ensureLevel(save, dex, 5), result);
+    assert.equal(training.state(saveFor(dex), dex).level, 1);
+  }
+});
+
+test('ensureLevel replaces obsolete Struggle with the existing real-attack default', () => {
+  const save = saveFor(4);
+  assert.deepEqual(training.state(save, 4).loadout, ['struggle']);
+  save.training[4].updated = 321;
+  const result = training.ensureLevel(save, 4, 5);
+  assert.deepEqual(result.loadout, ['ember', 'agility', 'harden', 'swords-dance']);
+  assert.equal(save.training[4].updated, 321);
+});
+
+test('ensureLevel preserves chosen loadouts, timestamps, inheritance and higher XP', () => {
+  const save = saveFor(7, 2);
+  atLevel(save, 7, 3);
+  training.setLoadout(save, 7, ['water-gun'], 123);
+  const owned = JSON.stringify(save.owned);
+  assert.deepEqual(training.ensureLevel(save, 7, 5).loadout, ['water-gun']);
+  assert.equal(save.training[7].updated, 123);
+  atLevel(save, 2, 30);
+  Object.assign(save.training[2], {
+    xp: training.xpAt(2, 30) + 17, inherited: ['harden'],
+    loadout: ['tackle', 'harden'], updated: 456, evolutionLevel: 30
+  });
+  const existing = JSON.stringify(save.training[2]);
+  training.ensureLevel(save, 2, 5);
+  assert.equal(JSON.stringify(save.training[2]), existing);
+  assert.equal(JSON.stringify(save.owned), owned);
+});
+
+test('tutorial awards exactly the level-five floor across every species without learning bonuses', () => {
+  for (const dex of Object.keys(data.pokemon)) {
+    const save = saveFor(dex);
+    save.pupg = { [dex]: { xp: 8 } };
+    const before = training.state(save, dex);
+    const previous = training.available(save, dex);
+    const result = training.awardTutorial(save, dex);
+    assert.deepEqual(Object.keys(result).sort(),
+      ['dex', 'before', 'after', 'gained', 'earned', 'unlocked', 'evolution'].sort());
+    assert.equal(result.dex, +dex);
+    assert.deepEqual(result.before, before);
+    assert.equal(result.after.xp, training.xpAt(dex, 5), dex);
+    assert.equal(result.after.level, 5);
+    assert.equal(result.gained, training.xpAt(dex, 5));
+    assert.equal(result.earned, result.gained);
+    assert.deepEqual(result.unlocked,
+      training.available(save, dex).filter(id => id !== 'struggle' && !previous.includes(id)));
+    assert.equal(result.evolution, null);
+    assert.equal(save.training[dex].updated, 0);
+  }
+});
+
+test('tutorial awards only missing floor XP and preserves higher saved progress without evolution', () => {
+  for (const level of [3, 5, 40, 100]) {
+    const save = saveFor(4, 7);
+    atLevel(save, 4, level);
+    if (level < 100) save.training[4].xp += 7;
+    if (level >= 5) training.setLoadout(save, 4, ['ember'], 987);
+    const before = training.state(save, 4), other = JSON.stringify(save.owned[7]);
+    const result = training.awardTutorial(save, 4);
+    assert.equal(result.after.xp, Math.max(before.xp, training.xpAt(4, 5)));
+    assert.equal(result.gained, result.after.xp - before.xp);
+    assert.equal(result.earned, result.gained);
+    assert.equal(result.evolution, null);
+    if (level >= 5) {
+      assert.deepEqual(result.after.loadout, before.loadout);
+      assert.equal(save.training[4].updated, 987);
+      assert.deepEqual(result.unlocked, []);
+    }
+    assert.equal(training.awardTutorial(save, 4).gained, 0);
+    assert.equal(JSON.stringify(save.owned[7]), other);
+    assert.equal(training.state(save, 7).level, 1);
+  }
+  assert.throws(() => training.awardTutorial(saveFor(), 4), /owned/);
+});
+
 test('Synthesis is absent from supported moves and every species learnset', () => {
   assert.equal(data.moves.synthesis, undefined);
   for (const [dex, mon] of Object.entries(data.pokemon)) {

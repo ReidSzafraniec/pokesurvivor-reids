@@ -10,7 +10,7 @@
     let game, activeRun, selectedDex, evolving, gentleEvolution;
     let baseMonFor;
     const statOrigins = new WeakMap();
-    let startFromTraining = false, returnToLobby = false, activeTab = 'moves';
+    let startFromTraining = false, returnToLobby = false, activeTab = 'moves', initialBuild = null;
     const statLabels = {
       hp: 'HP', pa: 'Ataque', sa: 'Ataque especial', df: 'Defensa',
       sd: 'Defensa especial', spd: 'Velocidad'
@@ -123,6 +123,22 @@
 
     function available(save, dex) {
       return eligible(save, dex, state(save, dex).level);
+    }
+
+    function ensureLevel(save, dex, minimumLevel) {
+      const floor = xpAt(dex, minimumLevel), entry = record(save, dex);
+      entry.xp = Math.max(entry.xp, floor);
+      return state(save, dex);
+    }
+
+    function awardTutorial(save, dex) {
+      const before = state(save, dex), previous = available(save, dex);
+      const after = ensureLevel(save, dex, 5), gained = after.xp - before.xp;
+      return {
+        dex: +dex, before, after, gained, earned: gained,
+        unlocked: available(save, dex).filter(id => id !== 'struggle' && !previous.includes(id)),
+        evolution: null
+      };
     }
 
     function statsFor(dex) {
@@ -619,6 +635,7 @@
     }
 
     function showTab(tab, focus = false) {
+      if (initialBuild && tab !== 'moves') return;
       activeTab = tab;
       for (const id of ['moves', 'perks']) {
         const selected = id === tab, button = $('training-tab-' + id);
@@ -637,7 +654,7 @@
           state(save, id).level, id));
       }
       select.value = selectedDex;
-      select.disabled = startFromTraining;
+      select.disabled = startFromTraining || !!initialBuild;
       select.onchange = () => { selectedDex = +select.value; render(); };
     }
 
@@ -740,6 +757,13 @@
       $('training-guest').classList.toggle('hidden', !game.DB.guest);
       $('training-fallback').classList.toggle('hidden', !allowed.includes('struggle'));
       $('training-play').classList.toggle('hidden', !startFromTraining);
+      $('scr-training').classList.toggle('initial-build', !!initialBuild);
+      $('training-back').classList.toggle('hidden', !!initialBuild);
+      $('training-tab-perks').disabled = !!initialBuild;
+      $('training-initial').classList.toggle('hidden', !initialBuild);
+      $('training-finish').classList.toggle('hidden', !initialBuild);
+      $('training-initial').textContent = text('Prepara tu primer conjunto: elige hasta cuatro movimientos, con al menos un ataque. Prueba los apoyos de Velocidad, Ataque y Defensa: duran mientras se activan y funcionan junto a tus ataques.');
+      $('training-finish').textContent = text('Guardar conjunto e ir al pueblo');
       game.UI.sprite($('training-stage'), dex, {
         lively: true, scale: 3, hero: true,
         shiny: dex === save.partner && !!save.partnerShiny && game.DB.ownsShiny(dex),
@@ -814,19 +838,39 @@
       }
     }
 
-    function open(dex = game.DB.save.partner, play = false, tab = 'moves') {
+    function open(dex = game.DB.save.partner, play = false, tab = 'moves', build = null) {
       if (game.Game.state !== 'ui') {
         game.UI.toast(text('Cambia tus movimientos entre partidas.'), 3000);
         return;
       }
       record(game.DB.save, dex);
       selectedDex = +dex;
+      initialBuild = build;
       startFromTraining = play;
       activeTab = tab;
       returnToLobby = game.UI.isOpen('scr-lobby') && !!game.Social.room;
       game.UI.show('scr-training', true);
       render();
       $('training-back').focus();
+    }
+
+    function openInitialBuild(dex, onComplete) {
+      if (typeof onComplete !== 'function') throw new TypeError('Initial build requires a completion callback');
+      state(game.DB.save, dex);
+      const build = { account: game.DB.fb?.uid || game.DB.user || game.DB.save, dex: +dex, finished: false };
+      open(dex, false, 'moves', build);
+      $('training-finish').onclick = () => {
+        if (initialBuild !== build || build.finished) return;
+        if (build.account !== (game.DB.fb?.uid || game.DB.user || game.DB.save) ||
+            !game.DB.save.owned[build.dex] || game.Game.state !== 'ui') {
+          game.UI.toast(text('El progreso ha cambiado. Vuelve al menú.'), 4500);
+          return;
+        }
+        setLoadout(game.DB.save, build.dex, state(game.DB.save, build.dex).loadout);
+        build.finished = true;
+        onComplete();
+      };
+      $('training-initial').focus();
     }
 
     function decorateDex(dex) {
@@ -871,6 +915,16 @@
         if (!game.Moves.BY_ID[id]) throw new Error('Unsupported combat move: ' + id);
       }
       game.Training = api;
+      if (game.Gacha?.pull) {
+        const originalPull = game.Gacha.pull;
+        game.Gacha.pull = function (save, count, banner, ticket) {
+          const results = originalPull.apply(this, arguments);
+          if (Array.isArray(results)) {
+            for (const dex of new Set(results.map(result => result.dex))) ensureLevel(save, dex, 5);
+          }
+          return results;
+        };
+      }
       baseMonFor = game.Mons.monFor.bind(game.Mons);
       game.Mons.monFor = statsFor;
       const originalTaken = game.Stats.taken;
@@ -1162,16 +1216,19 @@
         'Elige al menos un ataque. No repitas movimientos.':
           'Choose at least one attack. Do not repeat moves.',
         'Cambia tus movimientos entre partidas.': 'Change your moves between matches.',
-        'No se pudo guardar. No cierres el juego.': 'Could not save. Do not close the game.'
+        'No se pudo guardar. No cierres el juego.': 'Could not save. Do not close the game.',
+        'Prepara tu primer conjunto: elige hasta cuatro movimientos, con al menos un ataque. Prueba los apoyos de Velocidad, Ataque y Defensa: duran mientras se activan y funcionan junto a tus ataques.':
+          'Build your first loadout: choose up to four moves, including at least one attack. Try Speed, Power, and Defense support moves: their timed buffs work alongside your attacks.',
+        'Guardar conjunto e ir al pueblo': 'Save build and go to town'
       });
     }
 
     const api = {
       START_LEVEL, MAX_LEVEL, MAX_MOVES, xpAt, levelAt, normalize, state, available, statsFor,
-      setLoadout, reward, award, learningMultiplier, buyPerk, useNature, useAbility,
+      setLoadout, ensureLevel, awardTutorial, reward, award, learningMultiplier, buyPerk, useNature, useAbility,
       merge, pendingEvolution, cancelEvolution, evolve,
       isBase, baseOf, gachaEligible, gachaCollection, gachaPool, gachaRates,
-      temporaryOffers, install, open, openEvolution,
+      temporaryOffers, install, open, openInitialBuild, openEvolution,
       preparePlayer, decorateDex, decorateUpgrades
     };
     return api;
