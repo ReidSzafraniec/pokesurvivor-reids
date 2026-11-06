@@ -130,3 +130,12 @@ test('social and info screens adapt to portrait and fit the frame', () => {
   assert.match(find(css, '#set-tabs', MEDIA.COMPACT).body, /overflow-x: auto/);
   assert.match(find(css, '.lay-turn').body, /display: none/);
 });
+
+test('run dialogs fit the frame: scrollable bodies, fixed headers and action rows', () => {
+  assert.match(find(css, '.pause-box').body, /max-height: 100%/);
+  assert.match(find(css, '.results-box').body, /max-height: 100%/);
+  assert.match(find(css, '.results-actions').body, /flex-shrink: 0/);
+  assert.match(find(css, '#bond-cards', MEDIA.COMPACT_LAND).body, /grid-template-columns: 1fr 1fr/);
+  assert.ok(find(css, '.evolution-stage', MEDIA.COMPACT_LAND), 'evolution stage shrinks on phone landscape');
+  assert.doesNotMatch(find(css, '.card.evo').body, /gradient/);
+});
