@@ -48,3 +48,35 @@ test('town camera fits by long and short axis, clamped to 0.6–1.5', () => {
   assert.equal(town.fitScale(393, 852), 0.6);
   assert.equal(town.fitScale(3840, 2160), 1.5);
 });
+
+const { create } = require('../js/ui-scale.js');
+
+function scaleRoot(read) {
+  const listeners = {};
+  return { listeners, document: { documentElement: {} },
+    getComputedStyle: () => ({ getPropertyValue: () => read() }),
+    addEventListener: (type, fn) => { listeners[type] = fn; } };
+}
+
+test('HUD draws at the integer UI scale and touch hit areas follow it', () => {
+  let value = ' 2';
+  const root = scaleRoot(() => value);
+  const ui = create(root);
+  const calls = [];
+  const ctx = { save: () => calls.push('save'), restore: () => calls.push('restore'), scale: (x, y) => calls.push(['scale', x, y]) };
+  let seen;
+  const hud = { draw: (c, w, h, player, extra) => { seen = { w, h, player, extra, k: ui.buttonScale() }; } };
+  ui.drawHud(hud, ctx, 2560, 1440, 'p', 'x');
+  assert.deepEqual(seen, { w: 1280, h: 720, player: 'p', extra: 'x', k: 2 });
+  assert.deepEqual(calls, ['save', ['scale', 2, 2], 'restore']);
+  assert.equal(ui.buttonScale(), 1);
+  value = ' 1';
+  root.listeners.resize();
+  ui.drawHud(hud, ctx, 1280, 720, 'p', 'x');
+  assert.deepEqual(seen, { w: 1280, h: 720, player: 'p', extra: 'x', k: 1 });
+});
+
+test('missing or invalid UI scale falls back to 1', () => {
+  assert.equal(create(scaleRoot(() => '')).scale(), 1);
+  assert.equal(create(scaleRoot(() => ' 0')).scale(), 1);
+});

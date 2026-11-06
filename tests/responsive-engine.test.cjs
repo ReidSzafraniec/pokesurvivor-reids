@@ -44,3 +44,13 @@ test('top-center HUD text clears the safe area and drops under the HP group on n
   }
   assert.match(engine, /_0x4c351d=0xe\+_0x1a2069\['top'\]\+\(_0x3d17e6<0x230\?0x8c:0x0\)/);
 });
+
+test('the HUD and its touch buttons go through PSUiScale, with a safe fallback', () => {
+  assert.match(engine, /window\.PSUiScale\?window\.PSUiScale\.drawHud\(_0x599208\['HUD'\],/);
+  assert.match(engine, /const _psK=window\.PSUiScale\?window\.PSUiScale\.buttonScale\(\):1;/);
+  for (const page of ['index.html', 'en/index.html']) {
+    const source = fs.readFileSync(path.join(__dirname, '..', page), 'utf8');
+    const at = source.indexOf('js/ui-scale.js?v=');
+    assert.ok(at > 0 && at < source.indexOf('js/app.min.js?v='), page);
+  }
+});
