@@ -75,3 +75,34 @@ test('screens and floating UI sit inside the safe-area frame', () => {
   assert.match(find(css, '.topbar-menu', MEDIA.EXPANDED).body, /display: contents/);
   assert.match(find(css, '#rotate').body, /display: none !important/);
 });
+
+Object.assign(RETIRED, Object.fromEntries(['.menu-banner', '.mb-slide', '.mb-img', '.mb-play', '.mb-txt', '.mb-tag', '.mb-nav',
+  '.mb-dots', '.mb-arr', '.next', '.yt'].map(token => [token,
+  'Menu carousel is permanently suppressed (tests/menu.test.cjs); only the #menu-banner hidden rule remains'])));
+
+test('main menu: Play sits under the partner, outside the list, in both pages', () => {
+  for (const source of Object.values(html)) {
+    const menu = source.slice(source.indexOf('<section id="scr-menu"'), source.indexOf('<div id="topbar"'));
+    const play = menu.indexOf('data-go="play"');
+    assert.ok(play > menu.indexOf('class="partner-card"') && play < menu.indexOf('class="menu-list"'));
+    assert.match(menu, /<button class="menu-item play" data-go="play">Jugar<small>Entra en la mazmorra<\/small><\/button>/);
+    assert.match(menu, /<div class="box menu-stats-box"><div id="menu-stats"><\/div><\/div>/);
+  }
+});
+
+test('inline styles in the game pages use rem, never px', () => {
+  for (const source of Object.values(html)) {
+    const px = [...source.matchAll(/style="([^"]*)"/g)].filter(match => /\d+px/.test(match[1])).map(match => match[0]);
+    assert.deepEqual(px, []);
+  }
+});
+
+test('menu layouts: safe frame, two-column list on compact landscape, tiles in portrait', () => {
+  assert.match(find(css, '#scr-menu').body,
+    /padding: calc\(var\(--frame-t\) \+ var\(--topbar-h\) \+ var\(--gut\)\) var\(--frame-r\) var\(--frame-b\) var\(--frame-l\)/);
+  assert.match(find(css, '.menu-list', MEDIA.COMPACT_LAND).body, /grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
+  assert.match(find(css, '.menu-list', MEDIA.PORTRAIT).body, /grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
+  assert.match(find(css, '.menu-list .menu-item', MEDIA.PORTRAIT).body, /border-bottom-width: calc\(3 \* var\(--ap\)\)/);
+  assert.match(find(css, '.menu-left > .menu-item.play').body, /background: var\(--gold\)/);
+  assert.match(find(css, '#starter-grid .starter-card', MEDIA.PORTRAIT).body, /flex-basis: calc\(\(100% - 0\.75rem\) \/ 2\)/);
+});

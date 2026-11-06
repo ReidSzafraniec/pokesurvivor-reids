@@ -110,7 +110,7 @@
 <div id="rotate" class="hidden"><div class="box center"><div id="rotate-ico"></div><h2>Gira el móvil</h2><p class="sub">PokéSurvivor se juega en horizontal.</p></div></div>
 
 <section id="scr-login" class="scr hidden">
-  <div class="box" style="width:min(420px,100%)">
+  <div class="box" style="width:min(26.25rem,100%)">
     <div class="logo">
       <div class="t1">PokéSurvivor</div>
       <div class="t2" translate="no">Evolution</div>
@@ -134,10 +134,10 @@
         <button id="btn-auth" class="btn gold grow" type="submit">Entrar</button>
       </div>
     </form>
-    <div class="row" style="margin-top:10px">
+    <div class="row" style="margin-top:0.625rem">
       <button id="btn-google" class="btn google grow hidden" type="button">Entrar con Google</button>
     </div>
-    <div class="row" style="margin-top:10px">
+    <div class="row" style="margin-top:0.625rem">
       <button id="btn-guest" class="btn ghost grow" type="button">Jugar como invitado</button>
     </div>
     <p class="note center" id="login-mode"></p>
@@ -181,12 +181,12 @@
       <div id="menu-training-progress" class="training-summary"></div>
       <div class="seg hidden" id="menu-shiny"><button data-v="0">Normal</button><button data-v="1"></button></div>
     </div>
+    <button class="menu-item play" data-go="play">Jugar<small>Entra en la mazmorra</small></button>
   </div>
   <div class="menu-right">
     <div class="box">
       <div class="menu-list">
         <button id="menu-town" class="menu-item hidden">Volver al pueblo</button>
-        <button class="menu-item play" data-go="play">Jugar<small>Entra en la mazmorra</small></button>
         <button id="menu-training" class="menu-item">Entrenamiento<small>Estadísticas, movimientos y ventajas</small></button>
         <button class="menu-item" data-go="dex">Pokémon<small id="menu-dex-count">Tu colección</small></button>
         <button class="menu-item" data-go="shop">Tienda Kecleon<small>Mentas, Cápsulas y MT</small></button>
@@ -198,9 +198,7 @@
         <button class="menu-item" data-go="settings">Ajustes<small>Sonido, gráficos, controles y cuenta</small></button>
       </div>
     </div>
-    <div class="box" style="padding:14px 18px">
-      <div id="menu-stats" style="font-size:14px;color:var(--muted)"></div>
-    </div>
+    <div class="box menu-stats-box"><div id="menu-stats"></div></div>
   </div>
 </section>
 
@@ -242,11 +240,11 @@
 </section>
 
 <section id="scr-recover" class="scr dim hidden">
-  <div class="box" style="width:min(440px,100%)">
+  <div class="box" style="width:min(27.5rem,100%)">
     <h2>¿Te da miedo perder tu cuenta?</h2>
     <p>Vincula tu Gmail: si un día olvidas la contraseña, pulsas <b>Entrar con Google</b> y es tu misma cuenta, con todo lo tuyo.</p>
     <p class="err" id="rec-err"></p>
-    <div class="row" style="gap:8px;flex-wrap:wrap">
+    <div class="row" style="gap:0.5rem;flex-wrap:wrap">
       <button class="btn gold grow" id="rec-link" type="button">Vincular mi Gmail</button>
       <button class="btn ghost" id="rec-later" type="button">Ahora no</button>
     </div>
@@ -255,10 +253,10 @@
 </section>
 
 <section id="scr-savenote" class="scr dim hidden">
-  <div class="box" style="width:min(460px,100%)" translate="no">
+  <div class="box" style="width:min(28.75rem,100%)" translate="no">
     <h2 id="savenote-title"></h2>
     <div id="savenote-body"></div>
-    <button class="btn gold" id="savenote-ok" type="button" style="width:100%;margin-top:10px"></button>
+    <button class="btn gold" id="savenote-ok" type="button" style="width:100%;margin-top:0.625rem"></button>
   </div>
 </section>
 
@@ -285,7 +283,7 @@
 </section>
 
 <section id="scr-legal" class="scr dim hidden">
-  <div class="box legal" style="width:min(640px,100%)">
+  <div class="box legal" style="width:min(40rem,100%)">
     <div class="row between"><h2>Aviso legal</h2><button class="btn small ghost" id="legal-close">Cerrar</button></div>
     <h3>Proyecto de fan</h3>
     <p><b>PokéSurvivor</b> es un juego hecho por fans, <b>gratuito y sin ánimo de lucro</b>.
@@ -354,7 +352,7 @@
 </noscript>
 
 <section id="scr-nick" class="scr dim hidden">
-  <div class="box" style="width:min(440px,100%)">
+  <div class="box" style="width:min(27.5rem,100%)">
     <h2>Elige tu apodo</h2>
     <p class="sub">Es el nombre que verán tus amigos y el que sale en el ranking.
       Tu nombre y tu correo de Google no se enseñan a nadie.</p>
@@ -363,7 +361,7 @@
       <p id="nick-err" class="err"></p>
       <div class="row"><button id="nick-ok" class="btn gold grow" type="submit">Guardar apodo</button></div>
     </form>
-    <div class="row" style="margin-top:8px"><button id="nick-later" class="btn ghost grow" type="button">Ahora no</button></div>
+    <div class="row" style="margin-top:0.5rem"><button id="nick-later" class="btn ghost grow" type="button">Ahora no</button></div>
   </div>
 </section>
 
@@ -387,9 +385,9 @@
       <div class="row"><button id="lobby-menu" class="btn small ghost">Menú</button><button id="lobby-leave" class="btn small ghost">Salir de la sala</button></div></div>
     <p class="sub" id="lobby-sub"></p>
     <div id="lobby-members" class="lobby-members"></div>
-    <h3 id="lobby-inv-title" style="margin:14px 0 6px">Invitar amigos</h3>
+    <h3 id="lobby-inv-title" style="margin:0.875rem 0 0.375rem">Invitar amigos</h3>
     <div id="lobby-invite" class="fr-list"></div>
-    <div class="row" style="margin-top:14px">
+    <div class="row" style="margin-top:0.875rem">
       <button id="lobby-ready" class="btn grow" type="button"></button>
       <button id="lobby-start" class="btn gold grow">Empezar partida</button>
     </div>
@@ -400,7 +398,7 @@
 
 <section id="scr-rank" class="scr dim hidden">
   <div class="box wide">
-    <div class="row between"><h2>Ranking</h2><span class="row" style="gap:6px"><button id="rk-mod" class="btn small ghost hidden">Moderación</button><button class="btn small ghost" data-back>Volver</button></span></div>
+    <div class="row between"><h2>Ranking</h2><span class="row" style="gap:0.375rem"><button id="rk-mod" class="btn small ghost hidden">Moderación</button><button class="btn small ghost" data-back>Volver</button></span></div>
     <div class="gen-tabs" id="rk-mode"></div>
     <div class="filters" id="rk-period"></div>
     <div class="row rk-tools">
@@ -418,7 +416,7 @@
 
 <section id="scr-mod" class="scr dim hidden">
   <div class="box wide">
-    <div class="row between"><h2>Moderación</h2><span class="row" style="gap:6px"><button class="btn small danger" id="mod-purge">Quitar marcas de más de 1 hora</button><button class="btn small ghost" id="mod-back">Volver</button></span></div>
+    <div class="row between"><h2>Moderación</h2><span class="row" style="gap:0.375rem"><button class="btn small danger" id="mod-purge">Quitar marcas de más de 1 hora</button><button class="btn small ghost" id="mod-back">Volver</button></span></div>
     <div class="tabs" id="mod-tabs">
       <div class="tab on" data-tab="rep">Reportes</div>
       <div class="tab" data-tab="sus">Baneados</div>
@@ -449,7 +447,7 @@
 
 <div id="invite-pop" class="box invite-pop hidden">
   <div id="inv-text"></div>
-  <div class="row" style="margin-top:10px">
+  <div class="row" style="margin-top:0.625rem">
     <button id="inv-yes" class="btn gold small grow" data-sfx="confirm">Unirme</button>
     <button id="inv-no" class="btn ghost small">No, gracias</button>
   </div>
@@ -457,9 +455,9 @@
 
 <section id="scr-dex" class="scr dim hidden">
   <div class="box wide">
-    <div class="row between"><h2>Pokémon <span id="dex-total" class="sub" style="font-size:15px"></span></h2><button class="btn small ghost" data-back>Volver</button></div>
+    <div class="row between"><h2>Pokémon <span id="dex-total" class="sub" style="font-size:0.9375rem"></span></h2><button class="btn small ghost" data-back>Volver</button></div>
     <div class="gen-tabs" id="dex-gens"></div>
-    <div class="split" style="margin-top:8px">
+    <div class="split" style="margin-top:0.5rem">
       <div>
         <div class="dex-tools">
           <input id="dex-q" type="search" placeholder="Buscar por nombre o número" autocomplete="off" spellcheck="false">
@@ -488,7 +486,7 @@
         <h2 style="margin:0">Tienda Kecleon</h2>
         <button class="btn small ghost" data-back>Volver</button>
       </div>
-      <p class="sub" style="margin:8px 0 0" id="shop-hello">¡Bienvenido! Mentas, Cápsulas y MT. Lo que compres va a tu Mochila (en el menú principal); úsalo desde la ficha de cada Pokémon en la colección.</p>
+      <p class="sub" style="margin:0.5rem 0 0" id="shop-hello">¡Bienvenido! Mentas, Cápsulas y MT. Lo que compres va a tu Mochila (en el menú principal); úsalo desde la ficha de cada Pokémon en la colección.</p>
       <div id="shop-body"></div>
     </div>
   </div>
@@ -589,9 +587,9 @@
       <canvas id="upg-stage" class="stage" width="120" height="96"></canvas>
       <div class="grow">
         <p class="sub" style="margin:0">Cada Pokémon tiene sus propias mejoras: sólo cuentan cuando juegas con él.</p>
-        <div class="row" style="margin-top:8px">
+        <div class="row" style="margin-top:0.5rem">
           <label for="upg-mon" style="margin:0">Pokémon</label>
-          <select id="upg-mon" class="field" style="width:auto;min-width:220px"></select>
+          <select id="upg-mon" class="field" style="width:auto;min-width:13.75rem"></select>
         </div>
       </div>
     </div>
@@ -604,15 +602,15 @@
     <div class="row between"><h2>Gacha</h2><button class="btn small ghost" data-back>Volver</button></div>
     <p class="note">El gacha solo incluye formas base. Evoluciona tus Pokémon para conseguir sus siguientes formas.</p>
     <div class="gen-tabs" id="gacha-gens"></div>
-    <div class="split" style="margin-top:8px">
+    <div class="split" style="margin-top:0.5rem">
       <div>
         <div class="banner" id="banner">
           <h3 id="banner-title"></h3>
-          <p id="banner-desc" style="margin:4px 0 6px"></p>
+          <p id="banner-desc" style="margin:0.25rem 0 0.375rem"></p>
           <p class="sub" id="gacha-owned" style="margin:0"></p>
           <div class="feat" id="gacha-feat"></div>
         </div>
-        <div class="row" style="margin-top:14px">
+        <div class="row" style="margin-top:0.875rem">
           <button id="pull-10" class="btn gold grow" data-sfx="none">Tirar ×10 · <span id="cost-10"></span></button>
           <button id="pull-10b" class="btn gold grow" data-sfx="none">Tirar ×10 · <span id="cost-10b"></span></button>
           <button id="pull-100" class="btn gold grow" data-sfx="none">Tirar ×100 · <span id="cost-100"></span></button>
@@ -639,7 +637,7 @@
     <p class="note">Este nivel y sus mejoras se reinician en cada partida.</p>
     <p class="sub">Elige una recompensa<span class="kbd-hint"> · <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd></span></p>
     <div id="cards" class="cards"></div>
-    <button id="lvl-reroll" class="btn small ghost hidden" data-sfx="none" style="margin-top:10px">Cambiar opciones (<span id="lvl-rr-n">1</span>)<span class="kbd-hint"> · <kbd>R</kbd></span></button>
+    <button id="lvl-reroll" class="btn small ghost hidden" data-sfx="none" style="margin-top:0.625rem">Cambiar opciones (<span id="lvl-rr-n">1</span>)<span class="kbd-hint"> · <kbd>R</kbd></span></button>
     <p id="lvl-wait" class="note hidden"></p>
   </div>
 </section>
@@ -680,7 +678,7 @@
 </section>
 
 <section id="scr-over" class="scr dim hidden">
-  <div class="box center results-box" style="width:min(480px,100%)">
+  <div class="box center results-box" style="width:min(30rem,100%)">
     <header class="results-header">
       <p class="results-step"><span class="results-dot active"></span><span class="results-dot"></span>1 / 2 · Resultados de la partida</p>
       <h2 id="over-title" tabindex="-1">Has caído…</h2>
