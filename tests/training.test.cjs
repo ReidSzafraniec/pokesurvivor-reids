@@ -15,6 +15,52 @@ function atLevel(save, dex, level) {
   save.training[dex].xp = training.xpAt(dex, level);
 }
 
+test('Synthesis is absent from supported moves and every species learnset', () => {
+  assert.equal(data.moves.synthesis, undefined);
+  for (const [dex, mon] of Object.entries(data.pokemon)) {
+    assert(!mon.moves.some(([id]) => id === 'synthesis'), dex + ': level-up moves');
+    assert(!mon.tms.includes('synthesis'), dex + ': TMs');
+  }
+});
+
+test('old Synthesis loadouts lose only the removed move and preserve permanent XP', () => {
+  const save = saveFor(1);
+  atLevel(save, 1, 100);
+  Object.assign(save.training[1], {
+    loadout: ['tackle', 'synthesis', 'growth'], updated: 123
+  });
+  const xp = save.training[1].xp;
+  training.normalize(save);
+  assert.deepEqual(training.state(save, 1).loadout, ['tackle', 'growth']);
+  assert.equal(save.training[1].xp, xp);
+  assert.equal(save.training[1].updated, 123);
+  assert(!training.available(save, 1).includes('synthesis'));
+  assert.throws(() => training.setLoadout(save, 1, ['tackle', 'synthesis']), RangeError);
+});
+
+test('a removed Synthesis-only loadout receives the existing playable default', () => {
+  const save = saveFor(1);
+  atLevel(save, 1, 100);
+  save.training[1].loadout = ['synthesis'];
+  training.normalize(save);
+  const { loadout } = training.state(save, 1);
+  assert(!loadout.includes('synthesis'));
+  assert(loadout.some(id => id === 'struggle' || !data.moves[id].support));
+});
+
+test('old inherited Synthesis is removed without losing other inherited moves', () => {
+  const save = saveFor(2);
+  atLevel(save, 2, 100);
+  Object.assign(save.training[2], {
+    inherited: ['synthesis', 'seed-bomb'], loadout: ['tackle', 'synthesis', 'seed-bomb']
+  });
+  const xp = save.training[2].xp;
+  training.normalize(save);
+  assert.deepEqual(save.training[2].inherited, ['seed-bomb']);
+  assert.deepEqual(training.state(save, 2).loadout, ['tackle', 'seed-bomb']);
+  assert.equal(save.training[2].xp, xp);
+});
+
 test('all species have complete, monotonic official growth curves and playable defaults', () => {
   assert.equal(Object.keys(data.pokemon).length, 1025);
   for (const [dex, mon] of Object.entries(data.pokemon)) {
@@ -475,15 +521,15 @@ test('native player damage and durability use permanent stats beyond the old def
   assert.equal(new context.Player(context.Mons.monFor(25)).maxHp, 150);
 });
 
-test('only utility perks remain purchasable and old core-stat ranks are inert', () => {
+test('speed and utility perks remain purchasable while other old core-stat ranks are inert', () => {
   const { context } = installFixture();
   assert.deepEqual(Array.from(context.Upgrades.LIST, perk => perk.id),
-    ['cd', 'regen', 'magnet', 'xp', 'coins', 'crit', 'reroll']);
+    ['spd', 'cd', 'regen', 'magnet', 'xp', 'coins', 'crit', 'reroll']);
   const old = { hp: 10, atk: 10, spd: 8, def: 8, xp: 8, crit: 10, cd: 8 };
   const perks = context.Upgrades.perks(old);
   assert.equal(perks.hp, 0);
   assert.equal(perks.atkMul, 1);
-  assert.equal(perks.spdMul, 1);
+  assert.equal(perks.spdMul, 1.24);
   assert.equal(perks.dmgReduce, 0);
   assert.equal(perks.xpMul, 1.4);
   assert.equal(perks.crit, 0.3);
@@ -491,6 +537,80 @@ test('only utility perks remain purchasable and old core-stat ranks are inert', 
   assert.equal(context.Upgrades.cost('xp', 0), 100);
   assert.equal(context.Upgrades.BY.xp.max, 8);
   assert.equal(old.hp, 10);
+});
+
+test('speed purchases retain original prices and cap and persist per Pokemon', () => {
+  const { model, context, save } = installFixture();
+  context.Game.state = 'ui';
+  const persisted = [];
+  context.DB.commit = () => {
+    persisted.push(JSON.parse(JSON.stringify(save)));
+    return true;
+  };
+  const perk = context.Upgrades.LIST.find(perk => perk.id === 'spd');
+  assert(perk);
+  assert.equal(perk.max, 8);
+  assert.equal(perk.base, 70);
+  assert.equal(perk.grow, 1.4);
+  assert.equal(context.Upgrades.cost('spd', 0), 70);
+  assert.equal(context.Upgrades.cost('spd', 1), 100);
+  save.coins = 10000;
+  for (let rank = 0; rank < 8; rank++) {
+    const coins = save.coins, cost = 10 * Math.round(70 * 1.4 ** rank / 10);
+    assert.equal(context.Upgrades.cost('spd', rank), cost);
+    assert(model.buyPerk(25, 'spd'));
+    assert.equal(save.coins, coins - cost);
+    assert.equal(save.pupg[25].spd, rank + 1);
+    assert.equal(persisted.at(-1).pupg[25].spd, rank + 1);
+    assert.equal(context.Upgrades.perks(save.pupg[25]).spdMul, 1 + 0.03 * (rank + 1));
+    assert.equal(save.pupg[129], undefined);
+  }
+  const coins = save.coins;
+  assert.throws(() => model.buyPerk(25, 'spd'), /maximum/);
+  assert.equal(save.coins, coins);
+  assert.equal(persisted.length, 8);
+});
+
+test('speed purchases enforce ownership, funds and between-run access', () => {
+  const { model, context, save } = installFixture();
+  context.Game.state = 'ui';
+  context.DB.guest = true;
+  save.coins = 69;
+  assert.throws(() => model.buyPerk(25, 'spd'), /coins/);
+  assert.equal(save.coins, 69);
+  assert.equal(save.pupg, undefined);
+  assert.throws(() => model.buyPerk(4, 'spd'), /owned/);
+  save.coins = 70;
+  context.Game.state = 'playing';
+  assert.throws(() => model.buyPerk(25, 'spd'), /between/);
+  assert.equal(save.coins, 70);
+});
+
+test('saved speed ranks stack with permanent level growth in each new run', () => {
+  const { model, context } = installFixture();
+  loadNativePlayer(context);
+  context.Weather = { speedFor: () => 1 };
+  for (const level of [1, 100]) {
+    atLevel(context.DB.save, 25, level);
+    const mon = context.Mons.monFor(25);
+    const baseline = new context.Player(mon);
+    for (const rank of [0, 1, 8, 99]) {
+      context.DB.save.pupg = { 25: { spd: rank } };
+      context.DB.save = JSON.parse(JSON.stringify(context.DB.save));
+      model.normalize(context.DB.save);
+      const perks = context.Upgrades.perks(context.DB.save.pupg[25]);
+      const multiplier = 1 + 0.03 * Math.min(rank, 8);
+      for (let run = 0; run < 2; run++) {
+        const player = new context.Player(context.Mons.monFor(25), perks);
+        model.preparePlayer(player);
+        assert.equal(player.pokemonLevel, level);
+        assert.equal(player.baseSpd, baseline.baseSpd);
+        assert.equal(player.spdMul, multiplier);
+        assert.equal(player.spd, baseline.spd * multiplier);
+      }
+      assert.equal(context.Upgrades.perks(context.DB.save.pupg[129]).spdMul, 1);
+    }
+  }
 });
 
 test('learning speed boosts both XP channels and is snapshotted without item multipliers', () => {
@@ -535,7 +655,7 @@ test('perk purchases enforce ownership, allowed IDs, costs, caps and between-run
   assert.equal(chromeCoins, 900);
   assert.equal(save.pupg[25].xp, 1);
   assert.equal(model.state(save, 25).xp, before);
-  for (const id of ['hp', 'atk', 'spd', 'def', 'moves', 'nope']) {
+  for (const id of ['hp', 'atk', 'def', 'moves', 'nope']) {
     assert.throws(() => model.buyPerk(25, id), /utility perk/);
   }
   assert.throws(() => model.buyPerk(4, 'xp'), /owned/);

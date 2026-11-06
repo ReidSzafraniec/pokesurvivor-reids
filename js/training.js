@@ -910,10 +910,10 @@
       game.startMove2Of = () => null;
       const oldPerks = game.Upgrades.perks;
       game.Upgrades.perks = (upgrades = {}) => ({
-        ...oldPerks({ ...upgrades, hp: 0, atk: 0, spd: 0, def: 0 }),
+        ...oldPerks({ ...upgrades, hp: 0, atk: 0, def: 0 }),
         startMoves: 1, bans: 0
       });
-      const obsolete = new Set(['hp', 'atk', 'spd', 'def', 'moves', 'start', 'start2', 'ban']);
+      const obsolete = new Set(['hp', 'atk', 'def', 'moves', 'start', 'start2', 'ban']);
       game.Upgrades.LIST.splice(0, game.Upgrades.LIST.length,
         ...game.Upgrades.LIST.filter(upgrade => !obsolete.has(upgrade.id)));
       const learning = game.Upgrades.LIST.find(upgrade => upgrade.id === 'xp');
@@ -1092,8 +1092,8 @@
         'Movimientos': 'Moves',
         'Ventajas': 'Perks',
         'Ventajas permanentes': 'Permanent perks',
-        'Las ventajas son de cada Pok\u00e9mon. Aprendizaje aumenta tanto la XP de partida como la permanente. HP, ataques, defensas y velocidad crecen con el nivel, sin monedas.':
-          'Perks belong to each Pokemon. Learning speed increases both run XP and permanent XP. HP, attacks, defenses and Speed grow with levels, not coins.',
+        'Las ventajas son de cada Pok\u00e9mon. Aprendizaje aumenta tanto la XP de partida como la permanente. Zancada a\u00f1ade +3% de velocidad por rango (hasta +24%), adem\u00e1s del crecimiento por nivel.':
+          'Perks belong to each Pokemon. Learning speed increases both run XP and permanent XP. Stride adds +3% movement speed per rank (up to +24%), on top of level growth.',
         'Aprendizaje': 'Learning speed',
         '+5% XP de partida y permanente': '+5% run XP and permanent XP',
         'No se pudo aplicar. Revisa tus monedas, objetos y l\u00edmites.':

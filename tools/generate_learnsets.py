@@ -18,7 +18,7 @@ defense-curl withdraw sharpen meditate howl iron-defense cotton-guard acid-armor
 growth work-up bulk-up
 hone-claws belly-drum tail-glow rock-polish autotomize tailwind amnesia cosmic-power
 stockpile charge coil calm-mind shift-gear barrier shelter defend-order tidy-up
-ingrain recover slack-off milk-drink roost synthesis morning-sun moonlight
+ingrain recover slack-off milk-drink roost morning-sun moonlight
 shore-up rest soft-boiled heal-order
 flamethrower fire-spin heat-wave water-gun bubble hydro-pump aqua-ring
 vine-whip razor-leaf leaf-storm giga-drain thunder-shock discharge thunderbolt
@@ -199,7 +199,7 @@ def build(csv_dir=None):
                     "autotomize", "tailwind", "amnesia", "cosmic-power",
                     "stockpile", "charge", "coil", "calm-mind", "shift-gear",
                     "barrier", "shelter", "defend-order", "tidy-up", "ingrain",
-                    "recover", "slack-off", "milk-drink", "roost", "synthesis",
+                    "recover", "slack-off", "milk-drink", "roost",
                     "morning-sun", "moonlight", "shore-up", "rest",
                     "soft-boiled", "heal-order",
                 },
