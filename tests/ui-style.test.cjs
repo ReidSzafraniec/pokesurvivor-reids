@@ -147,3 +147,43 @@ test('town controls sit inside the safe area; d-pad on touch and phones; portrai
   assert.match(find(css, '.town-pad', '(pointer: coarse), (max-width: 499px), (max-height: 499px)').body, /display: grid/);
   assert.match(find(css, '.town-heading', MEDIA.PORTRAIT).body, /flex-wrap: wrap/);
 });
+
+test('screenshot-matrix regressions stay fixed', () => {
+  // A filled pop animation kept transform: none and pushed centered pop-ups (achievements) off-center.
+  assert.doesNotMatch(find(css, '.box').body, /animation: pop[^;]*\bboth\b/);
+  assert.match(find(css, '.ach-pop').body, /width: max-content/);
+  // Phone landscape: the Pokémon list column scrolls as a whole instead of squeezing the grid.
+  assert.match(find(css, '#scr-dex .split > div:first-child', MEDIA.COMPACT_LAND).body, /overflow-y: auto/);
+});
+
+test('engine-sized sprites follow the integer scale; rem-sized ones are not double-scaled', () => {
+  assert.match(find(css, '.scr canvas').body, /zoom: var\(--s\)/);
+  for (const selector of ['#town-map', '#menu-partner', '.evolution-stage canvas', '.topbar img']) {
+    assert.match(find(css, selector).body, /zoom: 1/, selector);
+  }
+});
+
+test('no legacy breakpoints, blur, backdrop filters, soft radii or legacy aliases remain', () => {
+  assert.doesNotMatch(css, /max-height: (520|400|380)px|min-height: 521px|max-width: (480|600|620|640|760|800|1000|1200|1280|1600)px/);
+  assert.doesNotMatch(css, /blur\(|backdrop-filter/);
+  assert.doesNotMatch(css, /--(box1|box2|edge-out|gold2|shadow)\b/);
+  for (const rule of rules(css)) {
+    const radius = /border-radius:\s*([^;]+)/.exec(rule.body);
+    if (radius) assert.equal(radius[1].trim(), '50%', rule.selector + ' uses a soft radius');
+  }
+});
+
+test('soft gradients only appear in the art allowlist', () => {
+  const art = /\.banner|\.ball|#pull-fx|\.shop-sign|\.evolution-running|\.yt-btn \.rec/;
+  for (const rule of rules(css)) {
+    if (/(?<!repeating-)(linear|radial)-gradient/.test(rule.body)) assert.match(rule.selector, art, rule.selector);
+  }
+});
+
+test('box shadows are hard pixels: no blur radius', () => {
+  const blurred = /(?:^|[\s,])-?\d*\.?\d+(?:px|rem)?\s+-?\d*\.?\d+(?:px|rem)?\s+[1-9]\d*\.?\d*(?:px|rem)/;
+  for (const rule of rules(css)) {
+    const shadow = /box-shadow:\s*([^;]+)/.exec(rule.body);
+    if (shadow) assert.doesNotMatch(shadow[1], blurred, rule.selector);
+  }
+});

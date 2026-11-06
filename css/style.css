@@ -33,8 +33,6 @@
   --dither: conic-gradient(rgba(5, 9, 20, .8) 25%, transparent 0 50%, rgba(5, 9, 20, .8) 0 75%, transparent 0);
   --frame-img: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='9' viewBox='0 0 9 9' shape-rendering='crispEdges'%3E%3Cdefs%3E%3Cg id='c'%3E%3Cpath fill='%230b1838' d='M2 0h2v1H2zM1 1h1v1H1zM0 2h1v2H0z'/%3E%3Cpath fill='%23f4f8ff' d='M2 1h2v1H2zM1 2h1v2H1z'/%3E%3Cpath fill='%235b83d6' d='M2 2h2v1H2zM2 3h1v1H2z'/%3E%3Cpath fill='%231f3a80' d='M3 3h1v1H3z'/%3E%3C/g%3E%3C/defs%3E%3Cuse href='%23c'/%3E%3Cuse href='%23c' transform='matrix(-1 0 0 1 9 0)'/%3E%3Cuse href='%23c' transform='matrix(1 0 0 -1 0 9)'/%3E%3Cuse href='%23c' transform='matrix(-1 0 0 -1 9 9)'/%3E%3Cpath fill='%230b1838' d='M4 0h1v1H4zM4 8h1v1H4zM0 4h1v1H0zM8 4h1v1H8z'/%3E%3Cpath fill='%23f4f8ff' d='M4 1h1v1H4zM4 7h1v1H4zM1 4h1v1H1zM7 4h1v1H7z'/%3E%3Cpath fill='%235b83d6' d='M4 2h1v1H4zM4 6h1v1H4zM2 4h1v1H2zM6 4h1v1H6z'/%3E%3Cpath fill='%231f3a80' d='M3 3h3v3H3z'/%3E%3C/svg%3E");
   --frame-gold: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='9' viewBox='0 0 9 9' shape-rendering='crispEdges'%3E%3Cdefs%3E%3Cg id='c'%3E%3Cpath fill='%230b1838' d='M2 0h2v1H2zM1 1h1v1H1zM0 2h1v2H0z'/%3E%3Cpath fill='%23ffd23f' d='M2 1h2v1H2zM1 2h1v2H1z'/%3E%3Cpath fill='%235b83d6' d='M2 2h2v1H2zM2 3h1v1H2z'/%3E%3Cpath fill='%231f3a80' d='M3 3h1v1H3z'/%3E%3C/g%3E%3C/defs%3E%3Cuse href='%23c'/%3E%3Cuse href='%23c' transform='matrix(-1 0 0 1 9 0)'/%3E%3Cuse href='%23c' transform='matrix(1 0 0 -1 0 9)'/%3E%3Cuse href='%23c' transform='matrix(-1 0 0 -1 9 9)'/%3E%3Cpath fill='%230b1838' d='M4 0h1v1H4zM4 8h1v1H4zM0 4h1v1H0zM8 4h1v1H8z'/%3E%3Cpath fill='%23ffd23f' d='M4 1h1v1H4zM4 7h1v1H4zM1 4h1v1H1zM7 4h1v1H7z'/%3E%3Cpath fill='%235b83d6' d='M4 2h1v1H4zM4 6h1v1H4zM2 4h1v1H2zM6 4h1v1H6z'/%3E%3Cpath fill='%231f3a80' d='M3 3h3v3H3z'/%3E%3C/svg%3E");
-  /* Legacy aliases for sections not yet ported (removed in Task 13). */
-  --box1: var(--navy-3); --box2: var(--navy-1); --edge-out: var(--line); --gold2: var(--gold-lo); --shadow: var(--line);
 }
 @media (min-width: 2560px) and (min-height: 1440px) { :root { --s: 2; } }
 @media (min-width: 3840px) and (min-height: 2160px) { :root { --s: 3; } }
@@ -69,7 +67,7 @@ html:lang(zh) .btn, html:lang(zh) .chip { letter-spacing: 0; }
   border-image: var(--frame-img) 4 fill / calc(4 * var(--ap)) stretch;
   filter: drop-shadow(var(--hard));
   text-shadow: var(--ap) var(--ap) 0 var(--line);
-  animation: pop .2s steps(3) both;
+  animation: pop .2s steps(3);
 }
 .box h1, .box h2, .box h3 { margin: 0 0 0.375rem; font-weight: 700; }
 .box h2 { font-size: 1.5rem; color: var(--gold); }
@@ -207,6 +205,9 @@ kbd { display: inline-block; padding: 0 0.375rem; font: inherit; font-size: 0.81
 .stats > div > span:first-child { display: block; color: var(--muted); font-size: 0.75rem; text-transform: uppercase; }
 .stats b { font-size: 1.375rem; }
 .move-icons { display: flex; flex-wrap: wrap; gap: 0.1875rem; margin: 0 0 0.625rem; }
+/* Engine-sized sprites and icons (fixed pixel sizes) follow the integer UI scale; CSS-sized ones reset to 1. */
+.scr canvas, .scr img, .topbar img, .toast img, .ach-pop img, .move-tip img, .invite-pop img, .sound-panel img, #pull-fx canvas, #pull-fx img { zoom: var(--s); }
+#town-map, #shop-scene, #slot, #menu-partner, .upg-head .stage, .training-head .stage, .evolution-stage canvas, .progress-stage, .mi-ico img, .topbar img { zoom: 1; }
 
 /* ---------- pills, toast, tooltip, focus, scrollbars ---------- */
 .pill { display: flex; align-items: center; gap: 0.375rem; min-height: 2.125rem; padding: 0 0.625rem 0 0.375rem; font-weight: 700;
@@ -222,6 +223,8 @@ kbd { display: inline-block; padding: 0 0.375rem; font: inherit; font-size: 0.81
 .move-tip-tags { display: flex; gap: 0.25rem; margin: 0.3125rem 0; }
 .move-tip .sub { margin: 0; font-size: 0.75rem; line-height: 1.4; }
 .pad-focus { outline: calc(2 * var(--ap)) solid var(--gold) !important; outline-offset: var(--ap); }
+/* Headings focused by script (results, dialogs) for screen readers: no visible ring. */
+[tabindex="-1"]:focus { outline: none; }
 ::-webkit-scrollbar { width: 0.625rem; height: 0.625rem; }
 ::-webkit-scrollbar-thumb { background: var(--edge-in); border: var(--ap) solid var(--line); }
 ::-webkit-scrollbar-track { background: var(--line); }
@@ -295,7 +298,8 @@ input[type=range]::-moz-range-thumb { width: 0.875rem; height: 0.875rem; backgro
   width: min(21.25rem, calc(100% - var(--frame-l) - var(--frame-r))); padding: 0.875rem 1rem; }
 .invite-pop img { vertical-align: middle; }
 .ach-pop { position: fixed; z-index: 80; left: 50%; top: calc(var(--frame-t) + var(--topbar-h) + 0.5rem); transform: translateX(-50%); pointer-events: none;
-  display: flex; gap: 0.625rem; align-items: center; padding: 0.625rem 1rem; border-image-source: var(--frame-gold); }
+  display: flex; gap: 0.625rem; align-items: center; width: max-content; max-width: calc(100% - var(--frame-l) - var(--frame-r));
+  padding: 0.625rem 1rem; border-image-source: var(--frame-gold); }
 .ach-pop b { display: block; color: var(--gold); }
 .ach-pop small { color: var(--muted); }
 body.in-run .ach-pop { top: calc(var(--frame-t) + 3.5rem); }
@@ -607,7 +611,7 @@ body:has(#scr-menu:not(.hidden)) :is(.town-heading, .town-footer, .town-pad) { v
 #scr-training .training-box { width: min(61.25rem, 100%); }
 .training-box :focus-visible { outline: var(--ap) solid var(--gold); outline-offset: calc(2 * var(--ap)); }
 .training-head { display: flex; align-items: center; gap: 1.25rem; }
-.training-head .stage { flex: 0 0 10rem; }
+.training-head .stage { flex: 0 0 10rem; width: 10rem; height: auto; aspect-ratio: 4 / 3; }
 .training-head select { width: 100%; max-width: 22.5rem; }
 .training-head .note { margin: 0.375rem 0; }
 .training-summary { display: grid; gap: 0.25rem; margin: 0.5rem 0; }
@@ -680,6 +684,11 @@ body:has(#scr-menu:not(.hidden)) :is(.town-heading, .town-footer, .town-pad) { v
   .shop-bubble { font-size: 0.6875rem; }
 }
 @media (max-height: 499px) and (orientation: landscape) {
+  /* Phone landscape: the whole list column scrolls, so filters never squeeze the grid. */
+  #scr-dex .split > div:first-child { overflow-y: auto; }
+  #scr-dex .grid { flex: none; overflow: visible; }
+  #scr-dex .chip { min-height: 2rem; padding: 0.125rem 0.5rem; font-size: 0.75rem; }
+  #scr-dex .gen-tab { min-height: 2.5rem; padding: 0.25rem 0.5rem; }
   .training-head .stage { display: none; }
   .training-box { padding: 0.625rem 0.875rem; }
   .training-moves { max-height: 11.25rem; }

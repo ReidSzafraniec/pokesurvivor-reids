@@ -47,7 +47,7 @@ borra la selección pendiente; no recibes el Pokémon hasta confirmar.
 | `5` `6` `7` `8` | Usar esferas |
 | `Esc` / `P` | Pausa |
 
-**En móvil o tablet** (en horizontal): pon el dedo en cualquier sitio y arrastra
+**En móvil o tablet** (en vertical u horizontal): pon el dedo en cualquier sitio y arrastra
 para moverte (el joystick aparece donde tocas), toca una esfera para usarla
 y el botón de arriba a la derecha para pausar. Se puede instalar como
 app ("Añadir a pantalla de inicio"). En **Ajustes** hay sonido, calidad gráfica
@@ -93,6 +93,33 @@ El guardado local de las cuentas vive en el `localStorage` del navegador: si
 borras los datos del sitio y no tienes copia en la nube, se pierde. Los invitados
 no guardan progreso al cerrar o recargar.
 
+## Interfaz
+
+La interfaz usa ventanas de píxeles al estilo de Mundo Misterioso y de las consolas
+portátiles: marcos nítidos, botones con relieve y sombras duras, sin desenfoques. Se adapta
+a cualquier pantalla, en vertical u horizontal, también durante la partida: en vertical ves
+la misma porción del mapa que en horizontal, girada.
+
+En iPhone y otros móviles con isla, muesca o barra de inicio, nada interactivo queda debajo:
+todo se coloca dentro de la zona segura que indica el sistema. En el móvil, los botones
+secundarios de la barra de arriba (perfil, novedades, YouTube, apoyar, guardar, pantalla
+completa y salir) están en el botón **⋯**. En monitores grandes la interfaz y el HUD de la
+partida se amplían a escalas enteras (×2 desde 2560×1440 y ×3 desde 3840×2160) para que
+cada píxel siga siendo nítido.
+
+Si colocas a mano los botones táctiles, se guarda una disposición para vertical y otra para
+horizontal.
+
+Para revisar la interfaz en varios dispositivos:
+
+```sh
+npm install
+npx playwright install chromium
+npm run shots                 # o: npm run shots -- --only=iphone-15-pro
+```
+
+Las capturas quedan en `.shots/`, con las zonas inseguras simuladas rayadas en rojo.
+
 ## Pueblo principal
 
 Al entrar, después de elegir compañero, llegas a **Villa Compañera**: un pueblo
@@ -117,7 +144,7 @@ abren las pantallas existentes, sin interiores.
 Muévete con **WASD o las flechas** y pulsa **E o Espacio** cerca de una puerta,
 el tablón, la cabina o la salida norte para interactuar. El panel de interacción
 solo aparece al situarte directamente delante del destino; no se activa desde
-un lateral ni por detrás. En móvil horizontal hay una cruceta y el mismo botón
+un lateral ni por detrás. En móvil y tableta, en vertical u horizontal, hay una cruceta y el mismo botón
 contextual.
 **M, Esc o Menú** abren el menú de siempre sin tener que caminar; **Volver al
 pueblo** lo cierra. Al cerrar una pantalla abierta desde una puerta, vuelves al
@@ -316,7 +343,9 @@ por su fecha de edición.
 ### Datos y comprobaciones
 
 `js/training.js` contiene el modelo legible y la integración; `js/app.min.js`
-conserva el motor existente con hooks puntuales. `js/data/learnsets.js` incluye
+conserva el motor existente con hooks puntuales. `tools/patch-responsive-engine.cjs` aplica al
+motor los cambios de orientación, zona segura y escala de la interfaz; se puede volver a
+ejecutar sin efectos. `js/data/learnsets.js` incluye
 los datos de movimientos, ascendencia y evoluciones sin consultas a PokeAPI
 durante el juego. La revisión de origen y su licencia están en [CREDITS.md](CREDITS.md).
 
