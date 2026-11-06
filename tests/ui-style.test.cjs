@@ -139,3 +139,11 @@ test('run dialogs fit the frame: scrollable bodies, fixed headers and action row
   assert.ok(find(css, '.evolution-stage', MEDIA.COMPACT_LAND), 'evolution stage shrinks on phone landscape');
   assert.doesNotMatch(find(css, '.card.evo').body, /gradient/);
 });
+
+test('town controls sit inside the safe area; d-pad on touch and phones; portrait heading stacks', () => {
+  assert.match(find(css, '.town-heading').body, /top: calc\(var\(--frame-t\) \+ var\(--topbar-h\) \+ var\(--gut\)\)/);
+  assert.match(find(css, '.town-pad').body, /left: var\(--frame-l\); bottom: var\(--frame-b\)/);
+  assert.match(find(css, '.town-footer').body, /bottom: calc\(var\(--frame-b\) \+ 1\.5rem\)/);
+  assert.match(find(css, '.town-pad', '(pointer: coarse), (max-width: 499px), (max-height: 499px)').body, /display: grid/);
+  assert.match(find(css, '.town-heading', MEDIA.PORTRAIT).body, /flex-wrap: wrap/);
+});
