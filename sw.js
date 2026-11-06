@@ -9,7 +9,7 @@ self.addEventListener('install', e => {
     './js/onboarding.js?v=starter-regions-1',
     './js/hosting-config.js?v=hosting-1', './js/hosting.js?v=hosting-1',
     './js/topbar.js?v=pixel-ui-1', './js/ui-scale.js?v=pixel-ui-1',
-    './js/app.min.js?v=eb3d0e52ee'
+    './js/app.min.js?v=b9b1c87f8c'
   ])).catch(error => {
     console.error('[PWA] Could not cache game code:', error);
     throw error;

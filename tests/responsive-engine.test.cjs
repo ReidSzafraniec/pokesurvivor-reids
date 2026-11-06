@@ -54,3 +54,9 @@ test('the HUD and its touch buttons go through PSUiScale, with a safe fallback',
     assert.ok(at > 0 && at < source.indexOf('js/app.min.js?v='), page);
   }
 });
+
+test('bottom HUD (orb bar, opening hint) clears the full home-indicator inset', () => {
+  assert.match(engine, /_0x3de3e0-0x4-_0x599208\['Touch'\]\['safeArea'\]\(\)\['bottom'\]\)/);
+  assert.match(engine, /\(_0x2be7a5\?_0x599208\['Touch'\]\['safeArea'\]\(\)\['bottom'\]:0x0\)/);
+  assert.doesNotMatch(engine, /Math\['min'\]\(0x1c,/);
+});
