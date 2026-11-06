@@ -76,6 +76,14 @@ test('screens and floating UI sit inside the safe-area frame', () => {
   assert.match(find(css, '#rotate').body, /display: none !important/);
 });
 
+test('in-game promotion remains suppressed after engine updates', () => {
+  for (const selector of ['#btn-yt', '#btn-support', '#scr-support', '.support-ask']) {
+    const rule = find(css, selector);
+    assert.ok(rule, selector + ' needs a top-level suppression rule');
+    assert.match(rule.body, /display:\s*none\s*!important/, selector);
+  }
+});
+
 Object.assign(RETIRED, Object.fromEntries(['.menu-banner', '.mb-slide', '.mb-img', '.mb-play', '.mb-txt', '.mb-tag', '.mb-nav',
   '.mb-dots', '.mb-arr', '.next', '.yt'].map(token => [token,
   'Menu carousel is permanently suppressed (tests/menu.test.cjs); only the #menu-banner hidden rule remains'])));

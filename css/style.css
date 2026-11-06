@@ -337,6 +337,8 @@ body.in-run .ach-pop { top: calc(var(--frame-t) + 3.5rem); }
 body:has(#scr-menu:not(.hidden)) :is(.town-heading, .town-footer, .town-pad) { visibility: hidden; }
 /* Keep the engine's compatibility container hidden after announcement updates. */
 #scr-menu > #menu-banner { display: none !important; }
+/* Keep engine-required promotion elements without exposing them in the game UI. */
+#btn-yt, #btn-support, #scr-support, .support-ask { display: none !important; }
 .menu-left { display: grid; justify-items: center; align-content: center; gap: 0.75rem; min-width: 0; }
 .menu-right { display: grid; align-content: center; gap: 0.75rem; min-width: 0; }
 .logo { text-align: center; margin-bottom: 0.25rem; }

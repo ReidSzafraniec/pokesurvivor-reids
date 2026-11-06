@@ -361,6 +361,11 @@ por su fecha de edición.
 
 ### Datos y comprobaciones
 
+La interfaz del juego oculta los botones de YouTube y apoyo, el diálogo de apoyo
+y las peticiones de donación al terminar una run. Sus elementos se conservan
+para compatibilidad con el motor; las páginas de apoyo independientes y los
+créditos no cambian.
+
 `js/training.js` contiene el modelo legible y la integración; `js/app.min.js`
 conserva el motor existente con hooks puntuales. `tools/patch-responsive-engine.cjs` aplica al
 motor los cambios de orientación, zona segura y escala de la interfaz; se puede volver a

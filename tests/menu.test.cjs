@@ -55,6 +55,11 @@ test('new UI scripts load before the engine and are precached with the new style
     for (const page of ['index.html', 'en/index.html']) assert.ok(read(page).includes(`src="${file}"`), page + ' ' + file);
     assert.ok(worker.includes(`'./${file}'`), 'Uncached ' + file);
   }
-  for (const page of ['index.html', 'en/index.html']) assert.ok(read(page).includes('href="css/style.css?v=pixel-ui-1"'));
+  for (const page of ['index.html', 'en/index.html']) assert.ok(read(page).includes('href="css/style.css?v=no-promotion-1"'));
   assert.doesNotMatch(worker, /CODE\s*=\s*'ps-code-v23'/);
+});
+
+test('promotion removal refreshes the stylesheet and presentation cache', () => {
+  assert.doesNotMatch(worker, /CODE\s*=\s*'ps-code-v24'/);
+  assert.doesNotMatch(worker, /css\/style\.css\?v=pixel-ui-1/);
 });
