@@ -72,6 +72,42 @@ test('all official level-one moves are available immediately, with up to four eq
   }
 });
 
+test('base-form buffs unlock at five without TMs and persist in a legal saved loadout', () => {
+  for (const dex of [1, 4, 7, 129, 132, 201]) {
+    const save = saveFor(dex);
+    atLevel(save, dex, 4);
+    const original = training.state(save, dex);
+    const buffs = data.pokemon[dex].moves
+      .filter(([id, level]) => level === 5 && data.moves[id].support).map(([id]) => id);
+    assert(buffs.length >= 2, dex + ': missing level-five buffs');
+    for (const id of buffs) assert(!training.available(save, dex).includes(id));
+    save.training[dex].xp = training.xpAt(dex, 5);
+    assert.deepEqual(training.state(save, dex).loadout, original.loadout);
+    for (const id of buffs) assert(training.available(save, dex).includes(id));
+    const attack = training.available(save, dex).find(id => id === 'struggle' || !data.moves[id].support);
+    const loadout = [attack, ...buffs];
+    training.setLoadout(save, dex, loadout);
+    const reloaded = JSON.parse(JSON.stringify(save));
+    training.normalize(reloaded);
+    assert.deepEqual(training.state(reloaded, dex).loadout, loadout);
+    assert.equal(training.state(reloaded, dex).xp, training.xpAt(dex, 5));
+    assert.throws(() => training.setLoadout(reloaded, dex, buffs), /including an attack/);
+    assert.throws(() => training.setLoadout(reloaded, dex, [...loadout, attack]), RangeError);
+  }
+});
+
+test('crossing permanent level five reports each new buff once without replacing selected moves', () => {
+  const save = saveFor(1);
+  atLevel(save, 1, 4);
+  const before = training.state(save, 1);
+  save.training[1].xp = training.xpAt(1, 5) - 1;
+  const result = training.award(save, 1, { time: 2, kills: 0, bosses: 0 });
+  assert.equal(result.after.level, 5);
+  assert.deepEqual(result.unlocked, ['agility', 'growth', 'harden']);
+  assert.deepEqual(result.after.loadout, before.loadout);
+  assert.deepEqual(training.award(save, 1, { time: 2, kills: 0, bosses: 0 }).unlocked, []);
+});
+
 test('all six official growth curves retain their distinct thresholds', () => {
   const expected = {
     1: [156250, 1250000], 2: [125000, 1000000], 3: [100000, 800000],
@@ -273,8 +309,8 @@ test('Struggle is explicit and disappears once a compatible attack is unlocked',
     assert.deepEqual(training.state(save, dex).loadout, ['struggle']);
   }
   atLevel(save, 129, 15);
-  assert.deepEqual(training.available(save, 129), ['tackle']);
-  assert.deepEqual(training.state(save, 129).loadout, ['tackle']);
+  assert.deepEqual(training.available(save, 129), ['agility', 'harden', 'swords-dance', 'tackle']);
+  assert.deepEqual(training.state(save, 129).loadout, ['tackle', 'agility', 'harden', 'swords-dance']);
   assert.throws(() => training.setLoadout(save, 129, ['struggle']), RangeError);
 });
 
@@ -725,6 +761,24 @@ test('actual orb XP multipliers affect temporary levels, never permanent perform
   }
   assert(results[1].runLevel > results[0].runLevel);
   assert.deepEqual(results[1].permanent, results[0].permanent);
+});
+
+test('level-five combat pools and prepared moves use the same buff eligibility as training', () => {
+  const { model, context, save } = installFixture();
+  atLevel(save, 129, 4);
+  assert.deepEqual(context.Moves.poolFor({ dex: 129 }), []);
+  atLevel(save, 129, 5);
+  const buffs = ['agility', 'harden', 'swords-dance'];
+  assert.deepEqual(context.Moves.poolFor({ dex: 129 }), buffs);
+  assert.deepEqual(context.Moves.poolFor({ dex: 129 }, true), buffs);
+  assert.deepEqual(model.available(save, 129), ['struggle', ...buffs]);
+  const selected = ['struggle', ...buffs];
+  model.setLoadout(save, 129, selected);
+  const player = makePlayer(129);
+  model.preparePlayer(player);
+  assert.deepEqual(player.moves.map(move => move.id), selected);
+  assert.equal(player.pokemonLevel, 5);
+  assert.equal(player.level, 1);
 });
 
 test('integration equips the exact selected four without changing the temporary run level', () => {

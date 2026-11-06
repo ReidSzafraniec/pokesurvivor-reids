@@ -36,6 +36,34 @@ shadow-sneak ominous-wind dragon-breath dragon-claw outrage draining-kiss play-r
 disarming-voice mirror-shot gyro-ball sucker-punch night-slash
 """.split())
 
+BASE_BUFF_ROLES = {
+    "agility": {
+        "agility", "rock-polish", "autotomize", "tailwind",
+        "shift-gear", "tidy-up",
+    },
+    "swords-dance": {
+        "swords-dance", "nasty-plot", "sharpen", "meditate", "howl",
+        "hone-claws", "belly-drum", "tail-glow", "growth", "work-up",
+        "bulk-up", "coil", "calm-mind", "shift-gear", "tidy-up", "dragon-dance",
+    },
+    "harden": {
+        "harden", "defense-curl", "withdraw", "iron-defense", "cotton-guard",
+        "acid-armor", "amnesia", "cosmic-power", "stockpile", "charge",
+        "barrier", "shelter", "defend-order", "bulk-up", "coil", "calm-mind",
+    },
+}
+
+
+def base_buff_moves(moves):
+    """Give base forms all three buff roles by level five as a gameplay adjustment."""
+    original = sorted(moves, key=lambda pair: (pair[1], pair[0]))
+    levels = dict(original)
+    for fallback, role in BASE_BUFF_ROLES.items():
+        move = next((move for move, _ in original if move in role), fallback)
+        levels[move] = min(levels.get(move, 5), 5)
+    return sorted([[move, level] for move, level in levels.items()],
+                  key=lambda pair: (pair[1], pair[0]))
+
 
 def build(csv_dir=None):
     def rows(name):
@@ -147,6 +175,8 @@ def build(csv_dir=None):
             ),
             "tms": sorted(supported_ids[move] for move in machines.get(mon, {}).get(version, set())),
         }
+        if not pokemon[dex]["prevo"]:
+            pokemon[dex]["moves"] = base_buff_moves(pokemon[dex]["moves"])
 
     growth = {}
     for row in rows("experience.csv"):

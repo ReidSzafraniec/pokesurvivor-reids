@@ -134,6 +134,25 @@ test('retained pre-evolution attacks remain legal across multiple stages', () =>
   assert(!training.available(reloaded, 15).includes('hydro-pump'));
 });
 
+test('level-five species buffs and fillers survive evolution and saved inheritance validation', () => {
+  const save = saveFor(1);
+  atLevel(training, save, 1, 16);
+  const loadout = ['tackle', 'agility', 'growth', 'harden'];
+  training.setLoadout(save, 1, loadout);
+  training.evolve(save, 1, 2, 100);
+  assert.deepEqual(training.state(save, 2).loadout, loadout);
+  atLevel(training, save, 2, 32);
+  training.evolve(save, 2, 3, 200);
+  const reloaded = JSON.parse(JSON.stringify(save));
+  training.normalize(reloaded);
+  assert.deepEqual(training.state(reloaded, 3).loadout, loadout);
+  for (const id of loadout) assert(training.available(reloaded, 3).includes(id));
+  const independent = saveFor(2);
+  atLevel(training, independent, 2, 16);
+  assert(!training.available(independent, 2).includes('harden'));
+  assert(!training.available(independent, 2).includes('agility'));
+});
+
 test('multi-level awards permit chained evolutions, but stopping checks the attained level', () => {
   const save = saveFor(4);
   atLevel(training, save, 4, 40);

@@ -1149,8 +1149,8 @@
           'All your moves attack automatically from the start.',
         'Arrastra el dedo para moverte \u00b7 todos los ataques son autom\u00e1ticos \u00b7 toca una esfera para usarla':
           'Drag to move \u00b7 all attacks are automatic \u00b7 tap an orb to use it',
-        'Se muestran los movimientos implementados, con los niveles y especies de los juegos oficiales. Las MT aprendidas tambi\u00e9n se pueden equipar.':
-          'Only implemented moves are shown, with official species eligibility and learn levels. Learned TMs can also be equipped.',
+        'Cada forma base dispone de apoyos de Velocidad, Ataque y Defensa al nivel 5, sin MT. Las MT aprendidas tambi\u00e9n se pueden equipar.':
+          'Every base form has Speed, Attack and Defense buffs by level 5, without TMs. Learned TMs can also be equipped.',
         'Modo invitado: los niveles y movimientos se pierden al salir. Crea una cuenta para guardarlos.':
           'Guest mode: levels and moves are lost when you leave. Create an account to save them.',
         'Forcejeo es un ataque de emergencia: esta especie a\u00fan no tiene un ataque compatible desbloqueado.':
