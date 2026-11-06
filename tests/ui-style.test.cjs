@@ -45,3 +45,33 @@ test('components are pixel-crisp: 9-slice windows, beveled buttons, no radius or
     assert.doesNotMatch(rule.body, /border-radius|linear-gradient|radial-gradient|blur\(/, selector);
   }
 });
+
+const html = { es: read('index.html'), en: read('en/index.html') };
+Object.assign(RETIRED, Object.fromEntries(['#scr-test', '#scr-result', '#scr-nick', '#scr-over', '#scr-progress'].map(token => [token,
+  'Only referenced by the dropped max-height:520px padding override; the safe-area .scr frame now pads these screens'])));
+const topbarIds = source => [...source.slice(source.indexOf('<div id="topbar"'), source.indexOf('<div id="sound-panel"'))
+  .matchAll(/id="([^"]+)"/g)].map(match => match[1]);
+
+test('top bar: primary actions inline, secondary actions in the overflow menu, identical in both pages', () => {
+  assert.deepEqual(topbarIds(html.es), topbarIds(html.en));
+  const menu = html.es.slice(html.es.indexOf('id="topbar-menu"'), html.es.indexOf('<div id="sound-panel"'));
+  for (const id of ['user-pill', 'btn-save', 'btn-news', 'btn-yt', 'btn-support', 'btn-full', 'btn-logout']) {
+    assert.match(menu, new RegExp(`id="${id}"`), id + ' belongs in the overflow menu');
+  }
+  assert.match(html.es, /<button id="topbar-more"[^>]*aria-expanded="false"[^>]*aria-controls="topbar-menu"/);
+  for (const source of Object.values(html)) {
+    assert.ok(source.indexOf('js/topbar.js?v=') > 0 && source.indexOf('js/topbar.js?v=') < source.indexOf('js/app.min.js?v='));
+  }
+});
+
+test('screens and floating UI sit inside the safe-area frame', () => {
+  assert.match(find(css, '.scr').body, /padding: var\(--frame-t\) var\(--frame-r\) var\(--frame-b\) var\(--frame-l\)/);
+  assert.match(find(css, '#scr-dex').body, /padding-top: calc\(var\(--frame-t\) \+ var\(--topbar-h\) \+ var\(--gut\)\)/);
+  assert.match(find(css, '.topbar').body, /top: var\(--frame-t\)/);
+  for (const selector of ['.toast', '.sound-panel', '.credits-line', '.invite-pop', '.ach-pop']) {
+    assert.match(find(css, selector).body, /var\(--frame-/, selector);
+  }
+  assert.match(find(css, '.scr.dim').body, /background-image: var\(--dither\)/);
+  assert.match(find(css, '.topbar-menu', MEDIA.EXPANDED).body, /display: contents/);
+  assert.match(find(css, '#rotate').body, /display: none !important/);
+});
