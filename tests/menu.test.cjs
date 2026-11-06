@@ -49,3 +49,12 @@ test('service worker invalidates the previous presentation cache', () => {
   assert.doesNotMatch(worker, /CODE\s*=\s*'ps-code-v14'/);
   assert.match(worker, /ART\s*=\s*'ps-art-v1'/);
 });
+
+test('new UI scripts load before the engine and are precached with the new stylesheet', () => {
+  for (const file of ['js/topbar.js?v=pixel-ui-1', 'js/ui-scale.js?v=pixel-ui-1']) {
+    for (const page of ['index.html', 'en/index.html']) assert.ok(read(page).includes(`src="${file}"`), page + ' ' + file);
+    assert.ok(worker.includes(`'./${file}'`), 'Uncached ' + file);
+  }
+  for (const page of ['index.html', 'en/index.html']) assert.ok(read(page).includes('href="css/style.css?v=pixel-ui-1"'));
+  assert.doesNotMatch(worker, /CODE\s*=\s*'ps-code-v23'/);
+});
