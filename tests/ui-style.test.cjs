@@ -106,3 +106,17 @@ test('menu layouts: safe frame, two-column list on compact landscape, tiles in p
   assert.match(find(css, '.menu-left > .menu-item.play').body, /background: var\(--gold\)/);
   assert.match(find(css, '#starter-grid .starter-card', MEDIA.PORTRAIT).body, /flex-basis: calc\(\(100% - 0\.75rem\) \/ 2\)/);
 });
+
+test('collection screens: list/detail split stacks in portrait with a sticky primary action', () => {
+  assert.match(find(css, '#scr-dex .split', MEDIA.PORTRAIT).body, /grid-template-columns: minmax\(0, 1fr\)/);
+  assert.match(find(css, '#scr-gacha .split', MEDIA.PORTRAIT).body, /grid-template-columns: minmax\(0, 1fr\)/);
+  assert.match(find(css, '#dex-detail > .btn').body, /position: sticky/);
+  assert.match(find(css, '#scr-dex .box').body, /height: 100%/);
+  assert.match(find(css, '.training-slots', MEDIA.PORTRAIT).body, /repeat\(2, minmax\(0, 1fr\)\)/);
+  assert.match(find(css, '.upg').body, /minmax\(min\(17\.5rem, 100%\), 1fr\)/);
+});
+
+test('gacha cards glow with hard pixel rings, not blurred shadows', () => {
+  assert.match(find(css, '.pcard').body, /box-shadow: 0 0 0 var\(--ap\) var\(--rc, #fff\)/);
+  assert.doesNotMatch(find(css, '.pcard').body, /border-radius|blur/);
+});
