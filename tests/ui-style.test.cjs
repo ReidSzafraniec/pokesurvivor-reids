@@ -120,3 +120,13 @@ test('gacha cards glow with hard pixel rings, not blurred shadows', () => {
   assert.match(find(css, '.pcard').body, /box-shadow: 0 0 0 var\(--ap\) var\(--rc, #fff\)/);
   assert.doesNotMatch(find(css, '.pcard').body, /border-radius|blur/);
 });
+
+test('social and info screens adapt to portrait and fit the frame', () => {
+  assert.match(find(css, '.lobby-members', MEDIA.PORTRAIT).body, /repeat\(2, minmax\(0, 1fr\)\)/);
+  assert.match(find(css, '.rk-split', MEDIA.PORTRAIT).body, /grid-template-columns: minmax\(0, 1fr\)/);
+  assert.match(find(css, '.mission', MEDIA.PORTRAIT).body, /grid-template-columns: minmax\(0, 1fr\)/);
+  assert.match(find(css, '.box.settings').body, /max-height: 100%/);
+  assert.match(find(css, '.box.news-box').body, /max-height: 100%/);
+  assert.match(find(css, '#set-tabs', MEDIA.COMPACT).body, /overflow-x: auto/);
+  assert.match(find(css, '.lay-turn').body, /display: none/);
+});
