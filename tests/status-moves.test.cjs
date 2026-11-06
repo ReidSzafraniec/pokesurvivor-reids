@@ -423,7 +423,7 @@ test('generated self-buffs are support moves with canonical localized names and 
   for (const id of ['growl', 'tail-whip', 'leer', 'focus-energy', 'double-team', 'minimize']) assert(!data.moves[id]);
 });
 
-test('official buff unlocks use permanent levels and preserve saved loadouts', () => {
+test('buff unlocks use permanent levels and preserve saved loadouts', () => {
   const training = create(data);
   for (const id of buffs) {
     const entry = Object.entries(data.pokemon).find(([, mon]) =>
@@ -447,10 +447,11 @@ test('official buff unlocks use permanent levels and preserve saved loadouts', (
   }
 });
 
-test('new core copies retain selected-version canonical unlock examples', () => {
+test('base buff adjustments preserve later alternatives and recovery unlocks', () => {
   for (const [id, dex, level] of [
-    ['amnesia', 54, 34], ['calm-mind', 175, 18], ['shift-gear', 599, 40],
-    ['recover', 120, 48], ['roost', 16, 37], ['tail-glow', 313, 22]
+    ['amnesia', 54, 5], ['calm-mind', 175, 5], ['shift-gear', 599, 5],
+    ['recover', 120, 48], ['roost', 16, 37], ['tail-glow', 313, 5],
+    ['iron-defense', 7, 30], ['tailwind', 16, 41]
   ]) {
     assert(data.pokemon[dex].moves.some(([move, at]) => move === id && at === level), id);
   }
@@ -472,20 +473,43 @@ test('support-only starting moves still get the damaging Struggle fallback', () 
   assert.deepEqual(training.state(save, 27).loadout, ['struggle', 'defense-curl']);
 });
 
-test('base-form coverage partitions all unevolved species without fabricated eligibility', () => {
+test('every base form has speed, power and defense buffs by permanent level five without TMs', () => {
+  const { game } = fixture(), training = create(data);
   const bases = Object.entries(data.pokemon).filter(([, mon]) => mon.prevo === 0);
-  const covered = bases.filter(([, mon]) => mon.moves.some(([id]) => buffs.has(id)));
-  const uncovered = bases.filter(([, mon]) => !mon.moves.some(([id]) => buffs.has(id)));
   assert.equal(bases.length, 541);
-  assert.equal(covered.length, 391);
-  assert.equal(uncovered.length, 150);
-  const original = new Set(['harden', 'defense-curl', 'withdraw', 'sharpen', 'meditate', 'howl']);
-  assert.equal(covered.filter(([, mon]) =>
-    mon.moves.some(([id, level]) => original.has(id) && level <= 1)).length, 46);
-  const allSupport = bases.filter(([, mon]) => mon.moves.some(([id]) => data.moves[id].support));
-  assert.equal(allSupport.length, 391);
-  assert.equal(covered.length + uncovered.length, bases.length);
-  assert(covered.some(([dex]) => dex === '7'));
-  assert(uncovered.some(([dex]) => dex === '129'));
-  assert(bases.some(([dex]) => dex === '150'));
+  for (const [dex, mon] of bases) {
+    const save = { owned: { [dex]: { at: 1 } }, ptm: {} };
+    const before = training.state(save, dex);
+    save.training[dex].xp = training.xpAt(dex, 5);
+    const available = training.available(save, dex);
+    const stats = new Set(available.flatMap(id => {
+      const move = game.Moves.BY_ID[id];
+      return move?.kind === 'buff' ? [move.stat, move.secondaryStat] : [];
+    }));
+    assert(stats.has('spd'), dex + ': missing Speed buff');
+    assert(stats.has('patk') || stats.has('satk'), dex + ': missing Power buff');
+    assert(stats.has('def'), dex + ': missing Defense buff');
+    if (before.loadout.every(id => available.includes(id))) {
+      assert.deepEqual(training.state(save, dex).loadout, before.loadout);
+    }
+    assert.equal(new Set(mon.moves.map(([id]) => id)).size, mon.moves.length, dex + ': duplicate move');
+  }
+});
+
+test('base forms prefer their own buffs and use standard fillers only for missing roles', () => {
+  for (const [dex, expected] of [
+    [1, ['agility', 'growth', 'harden']],
+    [7, ['agility', 'swords-dance', 'withdraw']],
+    [54, ['agility', 'amnesia', 'swords-dance']],
+    [175, ['agility', 'calm-mind']],
+    [599, ['autotomize', 'charge', 'shift-gear']],
+    ...[4, 129, 132, 201, 235].map(dex => [dex, ['agility', 'harden', 'swords-dance']])
+  ]) {
+    assert.deepEqual(data.pokemon[dex].moves.filter(([, level]) => level === 5)
+      .map(([id]) => id), expected, String(dex));
+  }
+  assert(data.pokemon[27].moves.some(([id, level]) => id === 'defense-curl' && level === 1));
+  assert(!data.pokemon[27].moves.some(([id]) => id === 'harden'));
+  assert(data.pokemon[381].moves.some(([id, level]) => id === 'dragon-dance' && level === 1));
+  assert(data.pokemon[381].moves.some(([id, level]) => id === 'tailwind' && level === 5));
 });

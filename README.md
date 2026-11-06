@@ -223,10 +223,17 @@ Mantienen las mejoras temporales acumulables del juego, no un sistema nuevo de
 niveles de estadísticas: hasta cinco acumulaciones durante siete segundos,
 con +7 puntos porcentuales de reducción de daño o +13% de Ataque físico por
 acumulación. Los movimientos del mismo atributo comparten esas acumulaciones.
-Cada especie solo desbloquea los
-movimientos y niveles oficiales de su versión de referencia; no se asigna un
-apoyo arbitrario a todos los Pokémon. Afilar y Meditación están implementados,
-pero no tienen aprendices en las versiones actualmente seleccionadas.
+Los movimientos parten de la versión oficial de referencia de cada especie,
+con un ajuste para las **541 formas base**, incluidas las especies sin evolución:
+al **nivel permanente 5** todas disponen de apoyos de **Velocidad, Ataque
+físico o Especial y reducción de daño**, sin MT ni necesidad de evolucionar.
+Para cada atributo se adelanta al nivel 5 su primer apoyo propio implementado;
+si ya se aprende antes, conserva ese nivel. Si no tiene uno propio, recibe
+**Agilidad**, **Danza Espada** o **Fortaleza** al 5, según el atributo que falte.
+Los apoyos duales pueden cubrir dos atributos. La regeneración no cuenta como
+reducción de daño. Los demás apoyos y las curaciones conservan sus niveles.
+Afilar y Meditación están implementados, pero no tienen aprendices en las
+versiones actualmente seleccionadas.
 
 **Desarrollo** y **Avivar** acumulan Ataque físico y Ataque Especial a la vez
 (+6,5% de cada uno por acumulación); **Corpulencia** acumula Ataque físico (+6,5%)
@@ -236,8 +243,10 @@ correspondiente. Comparten con los otros apoyos las acumulaciones de cada
 atributo, el máximo inicial de cinco y la duración inicial de siete segundos.
 Los apoyos individuales y las mejoras por nivel no cambian. Se adaptan al
 equilibrio existente, sin efectos adicionales por clima ni niveles de
-estadísticas oficiales. Que una especie no tenga apoyos implementados no
-significa que carezca de movimientos de mejora en los juegos oficiales.
+estadísticas oficiales. El ajuste de las formas base no cambia su potencia,
+sus acumulaciones ni la selección de hasta cuatro movimientos. Desbloquear
+un apoyo no cambia automáticamente el equipo elegido; los movimientos
+aprendidos se conservan al evolucionar.
 
 Los demás apoyos reutilizan exclusivamente esas mismas mejoras del juego:
 
@@ -310,7 +319,8 @@ Esta primera versión usa los **103 movimientos de combate ya implementados**:
 no incluye todos los ataques de los juegos oficiales y mantiene su adaptación al
 combate de supervivencia. Sus especies compatibles y niveles proceden de
 **Escarlata/Púrpura**, o del juego oficial más reciente disponible en los datos si
-la especie no aparece allí. La pantalla muestra el juego de origen. Las MT
+la especie no aparece allí, con el ajuste de apoyos de las formas base al
+nivel 5 descrito arriba. La pantalla muestra el juego de origen. Las MT
 aprendidas se pueden equipar si son compatibles. Si todavía no hay un ataque
 implementado disponible (por ejemplo, Magikarp antes del nivel 15), se ofrece
 **Forcejeo** como ataque de emergencia, no como movimiento de su lista oficial.
