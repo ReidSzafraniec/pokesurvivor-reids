@@ -206,12 +206,14 @@ test('duplicate upgrade callbacks and unselected offers do not advance lessons',
   f.tick();
   f.game.RunUI.showLevelUp(2, [], () => {});
   assert(f.nodes.get('tutorial-panel').classList.contains('tutorial-choosing'));
+  assert(f.nodes.get('scr-levelup').classList.contains('tutorial-levelup'));
   assert.match(f.nodes.get('tutorial-text').textContent, /^\(1\/2\)/);
   f.tick();
   assert(f.enemies.length <= 4);
   const pick = f.game.RunUI.pick;
   pick({}); pick({});
   assert(!f.nodes.get('tutorial-panel').classList.contains('tutorial-choosing'));
+  assert(!f.nodes.get('scr-levelup').classList.contains('tutorial-levelup'));
   for (let i = 0; i < 10; i++) f.tick();
   assert(f.enemies.length <= 4, 'only one distinct selection completed');
   f.game.RunUI.showLevelUp(3, [], () => {});
@@ -417,6 +419,31 @@ test('both entry pages deliver accessible tutorial and build controls with coher
     }
   }
   assert(fs.readFileSync(require.resolve('../js/boot.js'), 'utf8').includes('tutorial'));
+});
+
+test('the screenshot matrix follows starter practice and initial build before town', async () => {
+  const source = fs.readFileSync(require.resolve('../tools/ui-shots.cjs'), 'utf8');
+  const start = source.indexOf("await step(page, dir, '02-starters'");
+  const end = source.indexOf("await step(page, dir, '04-menu'");
+  assert(start >= 0 && end > start);
+  const run = vm.runInNewContext('(async (page, dir, visible, step) => {' + source.slice(start, end) + '})');
+  let screen = 'login';
+  const page = { async click(selector) {
+    const transitions = {
+      '#btn-guest': ['login', 'scr-starters'],
+      '#starter-grid .starter-card': ['scr-starters', 'scr-starters'],
+      '#starter-ok': ['scr-starters', 'tutorial-panel'],
+      '#tutorial-skip': ['tutorial-panel', 'scr-training'],
+      '#training-finish': ['scr-training', 'scr-town']
+    };
+    const transition = transitions[selector];
+    assert(transition, 'Unexpected onboarding action: ' + selector);
+    assert.equal(screen, transition[0]);
+    screen = transition[1];
+  } };
+  await run(page, '', async (_page, selector) => assert.equal('#' + screen, selector),
+    async (_page, _dir, _name, action) => action());
+  assert.equal(screen, 'scr-town');
 });
 
 test('guest skip does not require persistence and paused frames do not spawn', () => {

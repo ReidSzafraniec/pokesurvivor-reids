@@ -25,6 +25,7 @@
     const $ = id => host.document.getElementById(id);
     const panel = $('tutorial-panel'), title = $('tutorial-title'), text = $('tutorial-text');
     const skip = $('tutorial-skip'), retry = $('tutorial-retry');
+    const levelScreen = $('scr-levelup');
     if (!panel || !title || !text || !skip || !retry) throw new Error('Missing tutorial controls');
     const T = value => game.T(value);
     let session = null;
@@ -72,6 +73,7 @@
 
     function clearMatch() {
       panel.classList.remove('tutorial-choosing');
+      levelScreen.classList.remove('tutorial-levelup');
       game.RunUI.closeLevelUp();
       game.UI.hideAll();
       game.Game.toUI();
@@ -262,12 +264,14 @@
       const current = session;
       let picked = false;
       panel.classList.add('tutorial-choosing');
+      levelScreen.classList.add('tutorial-levelup');
       prompt('Mejora de partida', '(' + Math.min(UPGRADE_COUNT, session.choices + 1) + '/' + UPGRADE_COUNT + ') ' +
         T('Elige una mejora de estadísticas. Solo dura esta partida.'));
       return originalLevel.call(this, level, offers, offer => {
         if (picked || session !== current || !practice()) return;
         picked = true;
         panel.classList.remove('tutorial-choosing');
+        levelScreen.classList.remove('tutorial-levelup');
         choose(offer);
         session.choices++;
         if (session.choices === UPGRADE_COUNT) {

@@ -79,6 +79,11 @@
     Object.freeze({ x: 708, y: 160, w: 8, h: 8 })
   ]);
   const clamp = (n, low, high) => Math.max(low, Math.min(high, n));
+  // Fit by long/short axis so portrait screens see the same town area as landscape, rotated.
+  function fitScale(width, height) {
+    const long = Math.max(width, height), short = Math.min(width, height);
+    return clamp(Math.min(long / 1120, short / 760), 0.6, 1.5);
+  }
 
   function walkable(x, y) {
     return x >= 96 + RADIUS && y >= 32 + RADIUS &&
@@ -697,7 +702,7 @@
       const pixelRatio = Math.min(host.devicePixelRatio || 1, 2);
       canvas.width = Math.round(bounds.width * pixelRatio);
       canvas.height = Math.round(bounds.height * pixelRatio);
-      scale = clamp(Math.min(bounds.width / 1120, bounds.height / 760), 0.6, 1.5);
+      scale = fitScale(bounds.width, bounds.height);
       viewWidth = bounds.width / scale;
       viewHeight = bounds.height / scale;
       draw();
@@ -1048,7 +1053,7 @@
   }
 
   const api = { WIDTH, HEIGHT, RADIUS, SPEED, SPAWN, BUILDINGS, DESTINATIONS, PLAZA, POND, PATHS, PROPS,
-    SOLIDS, walkable, move, nearby, direction, install };
+    SOLIDS, walkable, move, nearby, direction, fitScale, install };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else {
     window.PSTown = api;
