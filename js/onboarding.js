@@ -102,6 +102,7 @@
         account.starter = selected;
         account.partner = selected;
         game.DB.grant(selected, 'starter');
+        account.onboarding = { version: 1, dex: selected, stage: 'practice' };
         granted = true;
         for (const button of [...tabButtons, ...cards]) button.disabled = true;
       }
@@ -113,7 +114,7 @@
         return;
       }
       finished = true;
-      game.Flow.goMenu();
+      game.Tutorial.start();
     }
 
     function init() {
@@ -147,7 +148,10 @@
     }
 
     function start() {
-      if (game.DB.save.partner) return game.Flow.goMenu();
+      if (game.DB.save.partner) {
+        if (!game.Tutorial.resume()) game.Flow.goMenu();
+        return;
+      }
       account = game.DB.save;
       finished = false;
       granted = false;
@@ -206,6 +210,10 @@
 
     game.TestUI.init = init;
     game.TestUI.start = start;
+    const afterLogin = game.Flow.afterLogin;
+    game.Flow.afterLogin = function (...args) {
+      if (!game.Tutorial.resume()) return afterLogin.apply(this, args);
+    };
   }
 
   const api = { REGIONS, install };
@@ -215,6 +223,7 @@
     const installTraining = window.PSTraining.install;
     window.PSTraining.install = function (context) {
       const result = installTraining.call(this, context);
+      window.PSTutorial.install(context);
       install(context);
       return result;
     };

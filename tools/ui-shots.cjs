@@ -108,9 +108,17 @@ async function capture(browser, base, device, orientation) {
     await visible(page, '#scr-login', 20000);
   });
   await step(page, dir, '02-starters', async () => { await page.click('#btn-guest'); await visible(page, '#scr-starters', 20000); });
-  await step(page, dir, '03-town', async () => {
+  await step(page, dir, '03-tutorial', async () => {
     await page.click('#starter-grid .starter-card');
     await page.click('#starter-ok');
+    await visible(page, '#tutorial-panel', 20000);
+  });
+  await step(page, dir, '03-initial-build', async () => {
+    await page.click('#tutorial-skip');
+    await visible(page, '#scr-training', 20000);
+  });
+  await step(page, dir, '03-town', async () => {
+    await page.click('#training-finish');
     await visible(page, '#scr-town', 20000);
   });
   await step(page, dir, '04-menu', async () => { await page.click('#town-menu'); await visible(page, '#scr-menu'); });

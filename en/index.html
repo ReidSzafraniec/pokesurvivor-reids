@@ -83,7 +83,7 @@
   ]
 }
 </script>
-<link rel="stylesheet" href="css/style.css?v=no-promotion-1">
+<link rel="stylesheet" href="css/style.css?v=starter-pixel-ui-1">
 <script src="js/core/locales.js?v=ba2ae89740"></script>
 <script src="js/noframe.js"></script>
 </head>
@@ -499,12 +499,22 @@
   </div>
 </section>
 
+<aside id="tutorial-panel" class="box tutorial-panel hidden" aria-labelledby="tutorial-title">
+  <h2 id="tutorial-title"></h2>
+  <p id="tutorial-text" aria-live="polite"></p>
+  <div class="row">
+    <button id="tutorial-skip" class="btn small">Saltar tutorial y preparar compañero</button>
+    <button id="tutorial-retry" class="btn small gold hidden">Reintentar guardado</button>
+  </div>
+</aside>
+
 <section id="scr-training" class="scr dim hidden" aria-labelledby="training-title">
   <div class="box wide training-box">
     <div class="row between">
       <h2 id="training-title">Entrenamiento</h2>
       <button id="training-back" class="btn small ghost">Volver</button>
     </div>
+    <p id="training-initial" class="panel training-initial hidden" tabindex="-1" aria-live="polite"></p>
     <p class="sub">Tu Pokémon crece con cada nivel permanente. Prepara sus movimientos y compra ventajas.</p>
     <div class="training-head">
       <canvas id="training-stage" class="stage" width="160" height="120"></canvas>
@@ -562,6 +572,7 @@
       <div id="training-perks" class="upg"></div>
     </div>
     <button id="training-play" class="btn gold hidden">Empezar partida</button>
+    <button id="training-finish" class="btn gold hidden">Guardar conjunto e ir al pueblo</button>
   </div>
 </section>
 
@@ -716,14 +727,15 @@
 </section>
 
 <script defer src="js/data/learnsets.js?v=base-buffs-5"></script>
-<script defer src="js/training.js?v=training-buffs-4"></script>
+<script defer src="js/training.js?v=starter-tutorial-1"></script>
 <script defer src="js/town-multiplayer.js?v=shared-town-2"></script>
 <script defer src="js/town.js?v=shared-town-1"></script>
-<script defer src="js/onboarding.js?v=starter-regions-1"></script>
+<script defer src="js/tutorial.js?v=starter-pixel-ui-1"></script>
+<script defer src="js/onboarding.js?v=starter-tutorial-1"></script>
 <script defer src="js/hosting-config.js?v=hosting-1"></script>
-<script defer src="js/hosting.js?v=hosting-1"></script>
+<script defer src="js/hosting.js?v=mission-calendar-2"></script>
 <script defer src="js/topbar.js?v=pixel-ui-1"></script>
 <script defer src="js/ui-scale.js?v=pixel-ui-1"></script>
-<script defer src="js/app.min.js?v=b9b1c87f8c"></script>
+<script defer src="js/app.min.js?v=c091589476"></script>
 </body>
 </html>

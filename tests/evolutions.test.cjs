@@ -247,6 +247,76 @@ function bundledGacha(createModel = create) {
   return { model, game: context._0x599208, runtime: context };
 }
 
+test('actual bundled normal and shiny acquisitions are level five before pull returns', () => {
+  for (const shiny of [false, true]) {
+    const { model, game, runtime } = bundledGacha();
+    game.DEX = game.DEX.filter(mon => mon.dex === 4);
+    vm.runInContext('Math.random = () => 0.5', runtime);
+    if (shiny) game.Gacha.debugForceShiny(1);
+    const save = { ...saveFor(7), coins: 0, tickets: { t1: 1, t10: 0 }, stats: {} };
+    const results = game.Gacha.pull(save, 1, 1, 't1');
+    assert.equal(results.length, 1);
+    assert.equal(results[0].dex, 4);
+    assert.equal(results[0].shiny, shiny);
+    assert.equal(results[0].isNew, true);
+    assert.equal(results[0].refund, 0);
+    assert.equal(save.owned[4].from, 'gacha');
+    assert.equal(!!save.shiny[4], shiny);
+    assert.equal(model.state(save, 4).xp, model.xpAt(4, 5));
+    assert.deepEqual(model.state(save, 4).loadout, ['ember', 'agility', 'harden', 'swords-dance']);
+    assert.equal(model.state(save, 7).level, 1);
+    assert.equal(save.tickets.t1, 0);
+    assert.equal(save.stats.pulls, 1);
+    assert.equal(results.iris, 1);
+  }
+});
+
+test('actual bundled multi-pulls floor distinct species and duplicate records without resetting progress', () => {
+  for (const [count, ticket] of [[10, 't1'], [10, 't10'], [100, 't10']]) {
+    const { model, game, runtime } = bundledGacha();
+    const dexes = [4, 7, 129];
+    game.DEX = game.DEX.filter(mon => dexes.includes(mon.dex));
+    for (const mon of game.DEX) mon.rarity = 1;
+    let pick = 0;
+    game.U.pick = list => list[pick++ % list.length];
+    vm.runInContext('Math.random = () => 0.5', runtime);
+    const save = {
+      ...saveFor(4, 7, 1), coins: 0, tickets: { t1: 100, t10: 10 }, stats: {}
+    };
+    atLevel(model, save, 4, 3);
+    save.training[4].updated = 123;
+    atLevel(model, save, 7, 30);
+    save.training[7].xp += 17;
+    model.setLoadout(save, 7, ['water-gun'], 456);
+    const higher = JSON.stringify(save.training[7]), owned = JSON.stringify(save.owned);
+    const results = game.Gacha.pull(save, count, 1, ticket);
+    assert.equal(results.length, count);
+    assert.deepEqual([...new Set(results.map(result => result.dex))].sort((a, b) => a - b), dexes);
+    assert(results.filter(result => result.dex === 4).every(result => !result.isNew));
+    assert.equal(model.state(save, 4).xp, model.xpAt(4, 5));
+    assert.equal(save.training[4].updated, 123);
+    assert.equal(JSON.stringify(save.training[7]), higher);
+    assert.equal(model.state(save, 129).level, 5);
+    assert.equal(model.state(save, 1).level, 1);
+    for (const dex of [4, 7, 1]) {
+      assert.deepEqual(save.owned[dex], JSON.parse(owned)[dex]);
+    }
+    assert.equal(save.stats.pulls, count);
+    assert.equal(save.coins, results.reduce((sum, result) => sum + result.refund, 0));
+  }
+});
+
+test('failed actual bundled gacha pulls leave training and save unchanged', () => {
+  const { model, game } = bundledGacha();
+  const save = { ...saveFor(4), coins: 0, tickets: { t1: 0, t10: 0 }, stats: {} };
+  atLevel(model, save, 4, 3);
+  const before = JSON.stringify(save);
+  for (const [count, banner, ticket] of [[1, 1, 't1'], [10, 1, 't10'], [100, 1, 't1'], [1, 99, 't1']]) {
+    assert.equal(game.Gacha.pull(save, count, banner, ticket), null);
+    assert.equal(JSON.stringify(save), before);
+  }
+});
+
 test('the actual bundled gacha excludes evolutions in every rarity, featured list and banner', () => {
   const { model, game } = bundledGacha();
   for (let banner = 1; banner <= 10; banner++) {
@@ -263,6 +333,7 @@ test('the actual bundled gacha excludes evolutions in every rarity, featured lis
       assert.equal(results.length, count);
       assert(results.every(result => model.isBase(result.dex)));
       assert(results.every(result => Number.isInteger(result.refund)));
+      for (const { dex } of results) assert.equal(model.state(save, dex).level, 5);
     }
     assert.equal(save.stats.pulls, 221);
   }

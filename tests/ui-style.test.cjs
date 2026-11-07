@@ -35,6 +35,18 @@ test('env(safe-area-inset-*) is only read in :root', () => {
   assert.deepEqual(readers.map(rule => rule.selector), [':root']);
 });
 
+test('tutorial overlay keeps fixed positioning and the shared safe-area frame', () => {
+  const panel = find(css, '.tutorial-panel').body;
+  assert.match(panel, /position: fixed/);
+  assert.match(panel, /top: var\(--frame-t\)/);
+  for (const side of ['l', 'r', 'b']) assert.ok(panel.includes(`var(--frame-${side})`));
+  assert.ok(css.indexOf('.tutorial-panel {') > css.indexOf('.box {'),
+    'The generic window must not override the fixed tutorial overlay');
+  const compact = '(max-height: 600px)';
+  assert.match(find(css, '.tutorial-panel.tutorial-choosing', compact).body, /width: var\(--tutorial-guide-w\)/);
+  assert.match(find(css, '#scr-levelup.tutorial-levelup', compact).body, /padding-left: calc\(var\(--frame-l\) \+ var\(--tutorial-guide-w\) \+ var\(--gut\)\)/);
+});
+
 test('components are pixel-crisp: 9-slice windows, beveled buttons, no radius or gradients', () => {
   assert.match(find(css, '.box').body, /border-image: var\(--frame-img\) 4 fill \/ calc\(4 \* var\(--ap\)\) stretch/);
   assert.match(find(css, '.btn').body, /inset var\(--ap\) var\(--ap\) 0 var\(--hi\)/);

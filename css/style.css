@@ -22,6 +22,7 @@
   --frame-r: max(var(--gut), var(--sa-right));
   --frame-b: max(var(--gut), var(--sa-bottom));
   --frame-l: max(var(--gut), var(--sa-left));
+  --tutorial-guide-w: min(14.375rem, max(7.5rem, calc((100vw - var(--frame-l) - var(--frame-r) - 20.625rem) / 2 - 1rem)));
   --line: #0b1838; --navy-0: #162b62; --navy-1: #183170; --navy-2: #1f3a80; --navy-3: #2c519f; --navy-4: #3d67c0; --navy-5: #4a76d0;
   --edge-in: #5b83d6; --hi: #7fa3ee; --edge: #f4f8ff;
   --gold-hi: #fff1a8; --gold: #ffd23f; --gold-lo: #d98a10; --gold-ink: #3a2300;
@@ -85,6 +86,33 @@ html:lang(zh) .btn, html:lang(zh) .chip { letter-spacing: 0; }
 .row.between { justify-content: space-between; }
 .row.wrap { flex-wrap: wrap; }
 .grow { flex: 1; }
+
+.tutorial-panel {
+  position: fixed;
+  top: var(--frame-t);
+  left: calc(50% + (var(--frame-l) - var(--frame-r)) / 2);
+  transform: translateX(-50%);
+  width: min(35rem, calc(100% - var(--frame-l) - var(--frame-r)));
+  max-height: calc(100dvh - var(--frame-t) - var(--frame-b));
+  padding: 0.75rem 1rem;
+  z-index: 130;
+  pointer-events: none;
+}
+.tutorial-panel h2 { font-size: 1.125rem; margin: 0 0 0.25rem; }
+.tutorial-panel p { margin: 0 0 0.5rem; font-size: 0.875rem; }
+.tutorial-panel button { pointer-events: auto; white-space: normal; max-width: 100%; }
+.training-initial { padding: 1rem; }
+#scr-training.initial-build .training-traits,
+#scr-training.initial-build > .box > p:not(#training-initial):not(#training-guest) { display: none; }
+#scr-training.initial-build .training-head label,
+#scr-training.initial-build #training-mon { display: none; }
+@media (max-height: 600px) {
+  .tutorial-panel { left: var(--frame-l); transform: none; width: min(18.75rem, calc(100% - var(--frame-l) - var(--frame-r))); padding: 0.5rem; }
+  .tutorial-panel.tutorial-choosing { width: var(--tutorial-guide-w); }
+  #scr-levelup.tutorial-levelup { padding-left: calc(var(--frame-l) + var(--tutorial-guide-w) + var(--gut)); }
+  .tutorial-panel h2 { font-size: 0.9375rem; }
+  .tutorial-panel p { font-size: 0.75rem; }
+}
 
 /* ---------- buttons ---------- */
 .btn {

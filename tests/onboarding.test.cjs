@@ -78,6 +78,14 @@ function fixture() {
     Flow: {
       goMenu() { elements.get('scr-starters').classList.add('hidden'); calls.push(['menu']); },
       afterLogin() { game.DB.save.partner ? this.goMenu() : game.TestUI.start(); }
+    },
+    Tutorial: {
+      start() { elements.get('scr-starters').classList.add('hidden'); calls.push(['tutorial']); },
+      resume() {
+        if (game.DB.save.onboarding?.stage === 'practice') { this.start(); return true; }
+        if (game.DB.save.onboarding?.stage === 'build') { calls.push(['build']); return true; }
+        return false;
+      }
     }
   };
   load().install(game, host);
@@ -130,13 +138,14 @@ test('selection is explicit and confirmation grants the chosen normal Pokemon ex
   assert(!f.calls.some(call => call[0] === 'grant'));
   f.ok.click();
   f.ok.onclick();
-  assert.deepEqual(f.calls.filter(call => ['grant', 'commit', 'menu'].includes(call[0])),
-    [['grant', 25, 'starter'], ['commit'], ['menu']]);
+  assert.deepEqual(f.calls.filter(call => ['grant', 'commit', 'tutorial'].includes(call[0])),
+    [['grant', 25, 'starter'], ['commit'], ['tutorial']]);
   assert.equal(f.game.DB.save.partner, 25);
   assert.equal(f.game.DB.save.starter, 25);
   assert.equal(f.game.DB.save.coins, 42);
   assert.deepEqual(f.game.DB.save.personality, { legacy: true });
   assert.deepEqual(Object.keys(f.game.DB.save.owned), ['25']);
+  assert.deepEqual(f.game.DB.save.onboarding, { version: 1, dex: 25, stage: 'practice' });
 });
 
 test('changing region clears hidden selections and stale cards cannot grant a Pokemon', () => {
@@ -186,17 +195,18 @@ test('a failed account save stays on the picker and retries without granting twi
   f.game.DB.commit = () => { f.calls.push(['commit']); return false; };
   f.ok.click();
   assert(!f.calls.some(call => call[0] === 'menu'));
+  assert(!f.calls.some(call => call[0] === 'tutorial'));
   assert(f.calls.some(call => call[0] === 'toast' && /guardar/.test(call[1])));
   assert(!f.ok.disabled, 'The same save can be retried');
   assert(f.tabs().every(button => button.disabled));
   assert(f.cards().every(button => button.disabled));
   f.game.DB.commit = () => { f.calls.push(['commit']); return true; };
   f.ok.click();
-  assert.deepEqual(f.calls.filter(call => ['grant', 'commit', 'menu'].includes(call[0])),
-    [['grant', 25, 'starter'], ['commit'], ['commit'], ['menu']]);
+  assert.deepEqual(f.calls.filter(call => ['grant', 'commit', 'tutorial'].includes(call[0])),
+    [['grant', 25, 'starter'], ['commit'], ['commit'], ['tutorial']]);
 });
 
-test('guest selection reaches town even though guests do not persist progress', () => {
+test('guest selection enters practice even though guests do not persist progress', () => {
   const f = fixture();
   f.game.DB.guest = true;
   f.game.DB.commit = () => false;
@@ -204,7 +214,18 @@ test('guest selection reaches town even though guests do not persist progress', 
   f.cards()[0].click();
   f.ok.click();
   assert.equal(f.game.DB.save.partner, 1);
-  assert(f.calls.some(call => call[0] === 'menu'));
+  assert(f.calls.some(call => call[0] === 'tutorial'));
+});
+
+test('login resumes pending practice or build before routing to town', () => {
+  for (const stage of ['practice', 'build']) {
+    const f = fixture();
+    Object.assign(f.game.DB.save, { starter: 25, partner: 25,
+      owned: { 25: { from: 'starter' } }, onboarding: { version: 1, dex: 25, stage } });
+    f.game.Flow.afterLogin();
+    assert(f.calls.some(call => call[0] === (stage === 'practice' ? 'tutorial' : 'build')));
+    assert(!f.calls.some(call => call[0] === 'menu'));
+  }
 });
 
 test('keyboard tabs and cards have predictable arrow navigation and native activation', () => {
@@ -247,7 +268,8 @@ test('browser installation composes training and town before replacing quiz init
   const order = [];
   const f = fixture();
   const host = {
-    PSTraining: { install(context) { order.push('training-town'); assert.equal(context, f.game); return 'installed'; } }
+    PSTraining: { install(context) { order.push('training-town'); assert.equal(context, f.game); return 'installed'; } },
+    PSTutorial: { install(context) { order.push('tutorial'); assert.equal(context, f.game); } }
   };
   const context = vm.createContext({ window: host });
   vm.runInContext(fs.readFileSync(require.resolve('../js/onboarding.js'), 'utf8'), context);
@@ -256,7 +278,7 @@ test('browser installation composes training and town before replacing quiz init
   host.document = f.host.document;
   host.addEventListener = f.host.addEventListener;
   assert.equal(host.PSTraining.install(f.game), 'installed');
-  assert.deepEqual(order, ['training-town']);
+  assert.deepEqual(order, ['training-town', 'tutorial']);
   f.game.TestUI.init();
 });
 

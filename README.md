@@ -182,7 +182,32 @@ esas mejoras se reinician en cada partida. No desbloquea movimientos ni evolucio
 Los objetos siguen funcionando y los movimientos ya empiezan vinculados, pero
 no se consiguen, mejoran ni evolucionan ataques con las cartas de nivel.
 
-El **nivel permanente de Pokémon** empieza en 1 y llega hasta 100. Solo gana XP
+El **nivel permanente de Pokémon** llega hasta 100. Los futuros resultados del
+gacha, normales y shiny, dejan a la especie como mínimo en nivel 5, sin reducir
+XP ni cambiar conjuntos válidos de Pokémon ya entrenados. No se migran otras
+adquisiciones ni se sube toda la colección al iniciar sesión.
+
+Una cuenta nueva o un invitado elige compañero y entra directamente en un
+**combate tutorial individual**. El compañero empieza en nivel permanente 1:
+aprendes a moverte, a derrotar enemigos y a recoger su experiencia para elegir
+dos mejoras temporales reales. Cada mejora requiere varios enemigos y sus
+cristales normales de XP; no aparecen cristales gratuitos junto al jugador.
+Después aparece una gran oleada que se repone y aumenta su presión,
+sin muerte forzada ni límite de supervivencia. Puedes saltar el tutorial en
+cualquier momento. Cualquier derrota o salto da al compañero **exactamente
+nivel permanente 5**, sin XP adicional por rendimiento, y abre la preparación
+del primer conjunto: hasta cuatro movimientos distintos, con al menos un
+ataque y los apoyos de Velocidad, Ataque y Defensa disponibles. Al guardarlo
+entras en el pueblo.
+
+El tutorial es práctica: no otorga monedas, objetos, capturas, misiones,
+logros ni récords de partidas normales. Las cuentas guardan la etapa pendiente:
+al volver, la práctica incompleta se reinicia y la preparación pendiente se
+reabre sin repetir la recompensa. Los invitados conservan esto solo mientras
+dura su sesión. Las cuentas que ya tenían compañero sin tutorial pendiente
+siguen entrando como antes.
+
+Fuera de estas recompensas iniciales, el Pokémon solo gana XP
 al terminar una partida (también al salir desde la pausa), según el tiempo
 sobrevivido y los Pokémon derrotados, con un extra por jefes. Desbloquea movimientos
 y evoluciones a sus niveles oficiales y aumenta las estadísticas iniciales.
@@ -328,7 +353,7 @@ movimientos aprendidos, shiny, mejoras, naturaleza y posición de habilidad.
 Los movimientos aprendidos antes de evolucionar siguen disponibles aunque no
 estén en la lista de nivel de la nueva especie. Si ya tenías la especie de
 destino, se conservan la XP y las mejoras máximas. Puedes volver a conseguir la
-forma base en el gacha; empezará un entrenamiento nuevo en nivel 1.
+forma base en el gacha; empezará un entrenamiento nuevo en nivel 5.
 
 El **gacha solo entrega formas base**, tanto normales como shiny, en todos sus
 banners y tamaños de tirada. Las formas evolucionadas que ya tenías no se

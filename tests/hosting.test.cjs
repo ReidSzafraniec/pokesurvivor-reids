@@ -37,6 +37,17 @@ test('missing configuration produces an explicit setup error without a cloud fal
   assert.match(hosting.error, /Firebase.*config/i);
 });
 
+test('disabled leaderboards still supply UTC mission calendar periods', () => {
+  const ranking = runtime(config).ranking();
+  const sunday = ranking.periodIds(new Date('2026-11-08T23:59:59Z'));
+  const monday = ranking.periodIds(new Date('2026-11-09T00:00:00Z'));
+  assert.equal(sunday.d, '2026-11-08');
+  assert.equal(sunday.w, '2026-11-02');
+  assert.equal(monday.d, '2026-11-09');
+  assert.equal(monday.w, '2026-11-09');
+  assert.equal(ranking.PERIODS.length, 0);
+});
+
 test('both language pages load configuration and runtime before the engine', () => {
   for (const file of ['index.html', 'en\\index.html']) {
     const page = read(file);
