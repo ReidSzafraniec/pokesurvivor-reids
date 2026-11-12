@@ -152,6 +152,9 @@ mismo sitio; si la abriste desde el menú, vuelves a la lista.
 
 El pueblo no cambia tus monedas, colección, entrenamiento ni guardado. No da
 XP por caminar y la posición sólo dura durante la sesión de esa cuenta.
+Para ahorrar batería, el pueblo sólo se vuelve a dibujar cuando algo se mueve o
+cambia de animación, y los árboles, farolas y bancos iguales comparten una
+única imagen en memoria.
 Al crear o aceptar una sala cooperativa, hasta **cuatro jugadores** comparten
 este mismo pueblo. Cada uno mueve su Pokémon y su propia cámara; los demás
 jugadores no bloquean el paso. Las puertas abren únicamente los menús de quien
@@ -389,7 +392,9 @@ por su fecha de edición.
 La interfaz del juego oculta los botones de YouTube y apoyo, el diálogo de apoyo
 y las peticiones de donación al terminar una run. Sus elementos se conservan
 para compatibilidad con el motor; las páginas de apoyo independientes y los
-créditos no cambian.
+créditos no cambian. `tools/patch-promotion-engine.cjs` quita además del motor
+las consultas periódicas a GitHub y los temporizadores del botón de YouTube, del
+aviso de vídeo y del carrusel del menú ocultos; se puede volver a ejecutar sin efectos.
 
 `js/training.js` contiene el modelo legible y la integración; `js/app.min.js`
 conserva el motor existente con hooks puntuales. `tools/patch-responsive-engine.cjs` aplica al

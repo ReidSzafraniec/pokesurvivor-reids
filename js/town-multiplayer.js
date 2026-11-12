@@ -3,7 +3,12 @@
 
   const VERSION = 1, INTERVAL = 100, HEARTBEAT = 1000, TIMEOUT = 5000;
   const LOCATIONS = new Set(['town', 'menu', 'ready', 'away']);
+  const POSE_FIELDS = ['x', 'y', 'dir', 'walking', 'dex', 'shiny', 'skin', 'location'];
   const START_FAILED = 'No se pudo iniciar. Todos deben volver a prepararse.';
+
+  function samePose(a, b) {
+    return !!a && !!b && POSE_FIELDS.every(field => a[field] === b[field]);
+  }
 
   function create(game, host, { walkable }) {
     const { Social: social, Net: net } = game;
@@ -373,7 +378,7 @@
       const next = cleanPose(value);
       if (!next) throw new RangeError('Invalid local town pose');
       syncRoom();
-      if (JSON.stringify(pose) !== JSON.stringify(next)) {
+      if (!samePose(pose, next)) {
         pose = next;
         dirty = true;
         if (pose.location !== 'ready' && menuOpen) setReadyMenuOpen(false);
