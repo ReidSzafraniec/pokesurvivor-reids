@@ -3,11 +3,14 @@
 
   const VERSION = 1, INTERVAL = 100, HEARTBEAT = 1000, TIMEOUT = 5000;
   const LOCATIONS = new Set(['town', 'menu', 'ready', 'away']);
-  const POSE_FIELDS = ['x', 'y', 'dir', 'walking', 'dex', 'shiny', 'skin', 'location'];
   const START_FAILED = 'No se pudo iniciar. Todos deben volver a prepararse.';
 
+  // Poses are flat objects of primitives, so comparing every own field matches the old JSON comparison.
   function samePose(a, b) {
-    return !!a && !!b && POSE_FIELDS.every(field => a[field] === b[field]);
+    if (!a || !b) return false;
+    for (const field in b) if (a[field] !== b[field]) return false;
+    for (const field in a) if (!(field in b)) return false;
+    return true;
   }
 
   function create(game, host, { walkable }) {

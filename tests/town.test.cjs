@@ -625,6 +625,35 @@ test('a party member walking in town repaints once per frame', () => {
   }
 });
 
+test('a town stops repainting soon after a party member stops walking', () => {
+  const { network, towns } = sharedTown();
+  const walker = towns[1], viewer = towns[3];
+  let scenery = 0, time = 0;
+  const brush = viewer.elements.get('town-map').getContext(), drawImage = brush.drawImage;
+  brush.drawImage = (image, x, y) => {
+    if (image.width === town.WIDTH && image.height === town.HEIGHT) scenery++;
+    return drawImage(image, x, y);
+  };
+  const frames = count => {
+    for (let i = 0; i < count; i++) {
+      time += 16;
+      walker.advance(time);
+      viewer.advance(time);
+      network.advance(16);
+    }
+  };
+  frames(1);
+  walker.key('keydown', 'ArrowRight');
+  frames(20);
+  walker.key('keyup', 'ArrowRight');
+  frames(30);
+  const mate = viewer.game.Town.multiplayer.getSnapshot().members.find(m => m.uid === 'p1');
+  assert(mate.pose.x > town.SPAWN.x + 20 && !mate.pose.walking, 'The viewer received the final pose');
+  scenery = 0;
+  frames(10);
+  assert(scenery <= 1, 'Only the periodic refresh may repaint a settled town; got ' + scenery);
+});
+
 test('every destination dispatches its existing menu handler once and returns to town', () => {
   for (const building of town.DESTINATIONS) {
     const f = fixture();

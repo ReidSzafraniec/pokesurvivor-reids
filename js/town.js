@@ -577,7 +577,8 @@
 
     function cacheLayer(bounds, depth, paint, shared) {
       // Position-independent art (trees, lamps, benches) is painted once and reused at every copy.
-      let image = shared && sharedArt.get(shared);
+      const key = shared && shared + ':' + bounds.w + 'x' + bounds.h;
+      let image = key && sharedArt.get(key);
       if (!image) {
         image = doc.createElement('canvas');
         image.width = bounds.w;
@@ -585,7 +586,7 @@
         const brush = image.getContext('2d');
         brush.translate(-bounds.x, -bounds.y);
         paint(brush);
-        if (shared) sharedArt.set(shared, image);
+        if (key) sharedArt.set(key, image);
       }
       layers.push({ ...bounds, depth, image });
     }
@@ -812,8 +813,13 @@
       position = next;
       for (const remote of remoteAvatars.values()) {
         const blend = Math.min(1, Math.max(0, elapsed) * 12);
-        const x = remote.x + (remote.target.x - remote.x) * blend;
-        const y = remote.y + (remote.target.y - remote.y) * blend;
+        let x = remote.x + (remote.target.x - remote.x) * blend;
+        let y = remote.y + (remote.target.y - remote.y) * blend;
+        // Settle on the target instead of creeping by sub-pixel steps, so an idle town can stop repainting.
+        if (Math.abs(remote.target.x - x) < 0.5 && Math.abs(remote.target.y - y) < 0.5) {
+          x = remote.target.x;
+          y = remote.target.y;
+        }
         if (walkable(x, y)) { remote.x = x; remote.y = y; }
         else { remote.x = remote.target.x; remote.y = remote.target.y; }
         remote.sprite.update(Math.min(elapsed, 0.1));

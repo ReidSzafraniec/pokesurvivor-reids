@@ -1,5 +1,6 @@
 // Checked codemod: the hidden YouTube button, video notice and menu carousel stop polling GitHub
-// and stop their timers. Their elements stay hidden for engine compatibility. Safe to rerun.
+// and stop their timers. Their elements stay hidden for engine compatibility, and their unused
+// preview() hooks no longer show anything. Safe to rerun.
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
@@ -22,7 +23,7 @@ const EDITS = [
 function patch(source) {
   for (const [before, after] of EDITS) {
     if (!source.includes(before) && source.split(after).length === 2) continue;
-    if (source.split(before).length !== 2) throw new Error('Promotion engine anchor is not unique: ' + before.slice(0, 100));
+    if (source.split(before).length !== 2) throw new Error('Promotion engine anchor is missing or not unique: ' + before.slice(0, 100));
     source = source.replace(before, () => after);
   }
   new vm.Script(source);

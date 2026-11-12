@@ -95,6 +95,7 @@ test('hidden YouTube promotion and menu carousel no longer poll GitHub or keep t
   const engine = read('js/app.min.js');
   assert.equal(patch(engine), engine, 'The shipped engine already has the checked patch');
   assert.deepEqual(initPromotion(engine), { fetch: [], timers: [], listeners: [] });
+  assert.throws(() => patch('const unrelated = true;'), /anchor is missing or not unique/);
 });
 
 test('pages preload the same compact WOFF2 pixel fonts that the stylesheets use first', () => {
