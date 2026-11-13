@@ -67,6 +67,50 @@ test('lamps align along road edges without occupying paths or interaction approa
   }
 });
 
+test('the east road meets the side of the plaza at the same height as the west road', () => {
+  const west = town.PATHS.find(p => p.x < town.PLAZA.x && p.x + p.w > town.PLAZA.x &&
+    p.y >= town.PLAZA.y && p.y + p.h <= town.PLAZA.y + town.PLAZA.h);
+  assert(west, 'A west road meets the plaza');
+  const east = town.PATHS.find(p => p.x === town.PLAZA.x + town.PLAZA.w && p.w > 80);
+  assert(east, 'The east road starts at the right edge, not underneath the plaza');
+  assert.equal(east.y, west.y);
+  assert.equal(east.h, west.h);
+  const settings = town.BUILDINGS.find(b => b.id === 'settings');
+  assert(town.PATHS.some(p => p.x <= settings.door.x && p.x + p.w >= settings.door.x &&
+    p.y <= settings.y + settings.h && p.y + p.h === east.y + east.h),
+  'The settings lane joins the east road without a dangling tail');
+});
+
+test('the entire painted pond shoreline has a grass gap from every road border', () => {
+  const f = fixture();
+  f.game.Flow.goMenu();
+  const banks = f.painted.filter(r => r.color === '#b9b486');
+  const roads = f.painted.filter(r => r.color === '#adab72');
+  assert.equal(banks.length, town.POND.length);
+  assert.equal(roads.length, town.PATHS.length);
+  for (const bank of banks) {
+    for (const road of roads) {
+      assert(bank.x + bank.w + 8 <= road.x || road.x + road.w + 8 <= bank.x ||
+        bank.y + bank.h + 8 <= road.y || road.y + road.h + 8 <= bank.y,
+      'Leave at least eight pixels of grass between the shoreline and road edging');
+    }
+    assert(bank.x >= town.PLAZA.x + town.PLAZA.w + 8, 'Keep the pond east of the plaza');
+  }
+  const east = town.PATHS.find(p => p.x === town.PLAZA.x + town.PLAZA.w && p.w > 80);
+  assert(east);
+  assert(banks.every(bank => bank.y + bank.h + 8 <= east.y - 4), 'The pond sits above the east road');
+});
+
+test('the pond sits slightly left of the settings lane with its artwork inside the water', () => {
+  assert.equal(Math.max(...town.POND.map(p => p.x + p.w)), 1032);
+  const f = fixture();
+  f.game.Flow.goMenu();
+  for (const r of f.painted.filter(r => ['#a2ad7b', '#edb9c9'].includes(r.color))) {
+    assert(town.POND.some(p => r.x >= p.x && r.x + r.w <= p.x + p.w &&
+      r.y >= p.y && r.y + r.h <= p.y + p.h), 'Move the island and lilies with the pond');
+  }
+});
+
 test('every destination has a reachable, unambiguous approach from spawn', () => {
   const start = { ...town.SPAWN }, queue = [start], visited = new Set([start.x + ',' + start.y]);
   assert(town.walkable(start.x, start.y));

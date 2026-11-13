@@ -132,6 +132,8 @@ Misiones está en la parcela del noreste. **Amigos** se abre desde la cabina de
 teléfono situada en el césped a la derecha del tablón del Ranking.
 Los caminos conectan una plaza adoquinada, un estanque, bancos y jardines,
 rodeados de árboles; las farolas están alineadas fuera de los caminos.
+Los caminos este y oeste llegan a los lados de la plaza a la misma altura;
+el estanque queda al norte del camino este, separado por una franja de césped.
 
 El **Ranking** se consulta en un tablón junto a la plaza. Para preparar una
 **Expedición**, sigue el camino que sale del pueblo hacia el norte y usa el botón

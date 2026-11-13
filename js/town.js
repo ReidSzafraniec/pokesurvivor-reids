@@ -46,9 +46,9 @@
   ]);
   const PLAZA = Object.freeze({ x: 480, y: 464, w: 288, h: 192 });
   const POND = Object.freeze([
-    [896, 480, 112, 16], [880, 496, 160, 16], [864, 512, 192, 16],
-    [848, 528, 224, 32], [864, 560, 208, 32], [880, 592, 176, 16],
-    [896, 608, 144, 16], [912, 624, 112, 16]
+    [904, 432, 80, 8], [888, 440, 112, 8], [872, 448, 144, 16],
+    [856, 464, 176, 24], [872, 488, 160, 24], [888, 512, 128, 16],
+    [904, 528, 96, 8], [920, 536, 64, 8]
   ].map(([x, y, w, h]) => Object.freeze({ x, y, w, h })));
   const PATHS = Object.freeze([
     { x: 600, y: 0, w: 80, h: 928 },
@@ -56,8 +56,8 @@
     { x: 872, y: 320, w: 64, h: 80 },
     { x: 200, y: 568, w: 400, h: 56 },
     { x: 168, y: 560, w: 64, h: 64 },
-    { x: 680, y: 648, w: 432, h: 48 },
-    { x: 1080, y: 464, w: 48, h: 232 },
+    { x: PLAZA.x + PLAZA.w, y: 568, w: 360, h: 56 },
+    { x: 1080, y: 464, w: 48, h: 160 },
     { x: 232, y: 872, w: 896, h: 56 },
     ...BUILDINGS.map(b => ({ x: b.door.x - 24, y: b.y + b.h, w: 48, h: b.y < 700 ? 48 : 80 }))
   ].map(Object.freeze));
@@ -634,29 +634,29 @@
       for (const p of POND) rect(brush, '#397b99', p.x, p.y, p.w, p.h);
       const insidePond = (px, py, inset) => [[-inset, 0], [inset, 0], [0, -inset], [0, inset]].every(([dx, dy]) =>
         POND.some(p => px + dx >= p.x && px + dx < p.x + p.w && py + dy >= p.y && py + dy < p.y + p.h));
-      for (let py = 488; py < 640; py += 4) {
-        for (let px = 852; px < 1072; px += 4) {
+      for (let py = 436; py < 544; py += 4) {
+        for (let px = 860; px < 1032; px += 4) {
           if (insidePond(px, py, 8)) rect(brush, '#57a7b9', px, py, 4, 4);
         }
       }
-      for (let py = 496; py < 632; py += 16) {
-        for (let px = 860; px < 1064; px += 24) {
+      for (let py = 448; py < 536; py += 16) {
+        for (let px = 868; px < 1024; px += 24) {
           if (insidePond(px, py, 16)) {
             rect(brush, '#9ad9d1', px + py % 12, py, 12, 2);
           }
         }
       }
-      for (const [px, py] of [[900, 520], [1012, 576], [940, 608]]) {
+      for (const [px, py] of [[896, 464], [984, 496], [928, 520]]) {
         blob(brush, '#3f8061', px, py + 2, 12, 6);
         blob(brush, '#88b866', px, py, 10, 6);
         rect(brush, '#d6eb9a', px - 6, py - 2, 6, 2);
         rect(brush, '#edb9c9', px + 2, py - 6, 4, 4);
       }
-      blob(brush, '#397b99', 954, 556, 16, 12);
-      blob(brush, '#eee1af', 952, 552, 12, 12);
-      blob(brush, '#a2ad7b', 952, 548, 8, 8);
+      blob(brush, '#397b99', 946, 492, 16, 12);
+      blob(brush, '#eee1af', 944, 488, 12, 12);
+      blob(brush, '#a2ad7b', 944, 484, 8, 8);
       for (const [px, py, count] of [[144, 368, 6], [760, 360, 4], [304, 640, 5],
-        [752, 432, 3], [968, 448, 5], [1128, 656, 3], [400, 920, 6]]) {
+        [752, 432, 3], [968, 656, 5], [1128, 656, 3], [400, 920, 6]]) {
         for (let i = 0; i < count; i++) {
           const fx = px + i * 12, fy = py + i % 2 * 8;
           rect(brush, '#4b8c5c', fx, fy + 2, 2, 8);
