@@ -403,7 +403,20 @@ ejemplo en Edge de Xbox), el escenario ya no desaparece durante el resto de la p
 `js/training.js` contiene el modelo legible y la integración; `js/app.min.js`
 conserva el motor existente con hooks puntuales. `tools/patch-responsive-engine.cjs` aplica al
 motor los cambios de orientación, zona segura y escala de la interfaz; se puede volver a
-ejecutar sin efectos. `js/data/learnsets.js` incluye
+ejecutar sin efectos.
+
+`js/body-collision.js` mantiene los cuerpos enemigos fuera del cuerpo del jugador,
+también durante la persecución rápida y las embestidas. Solo desplaza al enemigo:
+no bloquea el movimiento del jugador ni cambia el alcance de sus ataques.
+El daño por contacto, su intervalo y el retroceso siguen siendo los originales.
+La separación se aplica después del movimiento y de la separación entre enemigos,
+respeta los obstáculos y los jugadores vivos en cooperativo, y no modifica las
+instantáneas de red ni el reciclaje de enemigos fuera de pantalla. El encuentro
+especial de Arceus conserva su propio sistema de colisión.
+`tools/patch-body-collision-engine.cjs` instala estos hooks de forma comprobada e
+idempotente; ambos idiomas y la caché sin conexión cargan el módulo antes del motor.
+
+`js/data/learnsets.js` incluye
 los datos de movimientos, ascendencia y evoluciones sin consultas a PokeAPI
 durante el juego. La revisión de origen y su licencia están en [CREDITS.md](CREDITS.md).
 
