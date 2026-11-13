@@ -4,6 +4,10 @@
   const Multiplayer = typeof module === 'object' && module.exports ?
     require('./town-multiplayer.js') : window.PSTownMultiplayer;
   const WIDTH = 1280, HEIGHT = 1024, RADIUS = 10, SPEED = 170;
+  // An unchanged scene is still repainted this often (ms), e.g. once a sprite sheet finishes loading.
+  const IDLE_REPAINT = 250;
+  // Painted-once art stays CPU-backed: a GPU process reset (e.g. on Xbox Edge) would wipe GPU canvases.
+  const CACHED_ART = Object.freeze({ willReadFrequently: true });
   const SPAWN = Object.freeze({ x: 640, y: 568 });
   const BUILDINGS = Object.freeze([
     ['training', 'Entrenamiento', 192, 176, 208, 160, '#ae9b57', 'gym'],
@@ -134,7 +138,8 @@
     const text = value => game.T(value);
     let position = { ...SPAWN }, account, avatar, appearance = '', shortcut = false;
     let frame = null, last = null, focused = true, initialized = false, currentDoor;
-    let scenery, layers = [], scale = 1, viewWidth = 0, viewHeight = 0;
+    let ticking = false, stale = true, scene = '', paintedAt = -Infinity;
+    let scenery, layers = [], sharedArt = new Map(), scale = 1, viewWidth = 0, viewHeight = 0;
     let walking = false, arrivalRoom = null, lobbyInitialized = false;
     const remoteAvatars = new Map();
     const multiplayer = Multiplayer.create(game, host, { walkable });
@@ -213,13 +218,13 @@
       publishPresence();
     }
 
-    function publishPresence() {
+    function publishPresence(knownBlocked) {
       if (!initialized || !avatar || !game.DB.save?.partner) return;
       const inUI = game.Game.state === 'ui' && !game.Coop.active;
       const readyMenu = inUI && visible($('scr-lobby'));
       multiplayer.setReadyMenuOpen(readyMenu);
       const location = !inUI ? 'away' : readyMenu ? 'ready' :
-        !visible(screen) ? 'away' : blocked() ? 'menu' : 'town';
+        !visible(screen) ? 'away' : (knownBlocked ?? blocked()) ? 'menu' : 'town';
       multiplayer.updateLocal({
         ...position, dir: avatar.dir || 0, walking: location === 'town' && walking,
         dex: avatar.dex, shiny: !!avatar.shiny, skin: avatar.skin || null, location
@@ -303,6 +308,7 @@
         avatar = new game.Sprites.Animator(dex, size, shiny);
         avatar.skin = skin;
         appearance = signature;
+        stale = true;
         $('town-partner').textContent = game.DEX_BY[dex].name + (shiny ? ' \u2605' : '');
       }
       return true;
@@ -571,13 +577,19 @@
       }
     }
 
-    function cacheLayer(bounds, depth, paint) {
-      const image = doc.createElement('canvas');
-      image.width = bounds.w;
-      image.height = bounds.h;
-      const brush = image.getContext('2d');
-      brush.translate(-bounds.x, -bounds.y);
-      paint(brush);
+    function cacheLayer(bounds, depth, paint, shared) {
+      // Position-independent art (trees, lamps, benches) is painted once and reused at every copy.
+      const key = shared && shared + ':' + bounds.w + 'x' + bounds.h;
+      let image = key && sharedArt.get(key);
+      if (!image) {
+        image = doc.createElement('canvas');
+        image.width = bounds.w;
+        image.height = bounds.h;
+        const brush = image.getContext('2d', CACHED_ART);
+        brush.translate(-bounds.x, -bounds.y);
+        paint(brush);
+        if (key) sharedArt.set(key, image);
+      }
       layers.push({ ...bounds, depth, image });
     }
 
@@ -586,7 +598,8 @@
       scenery.width = WIDTH;
       scenery.height = HEIGHT;
       layers = [];
-      const brush = scenery.getContext('2d');
+      sharedArt = new Map();
+      const brush = scenery.getContext('2d', CACHED_ART);
       rect(brush, '#8cbd78', 0, 0, WIDTH, HEIGHT);
       for (let y = 0; y < HEIGHT; y += 8) {
         for (let x = 0; x < WIDTH; x += 8) {
@@ -677,11 +690,11 @@
       }
       for (const t of forest) {
         cacheLayer({ x: t.x - 48, y: t.y - 84, w: 104, h: 116 }, t.y + 16,
-          context => tree(context, t.x, t.y));
+          context => tree(context, t.x, t.y), 'tree');
       }
       for (const p of PROPS) {
         cacheLayer({ x: p.x - 12, y: p.y - 72, w: 84, h: 96 }, p.y + 12,
-          context => prop(context, p));
+          context => prop(context, p), 'prop:' + p.kind);
       }
       cacheLayer({ x: 696, y: 112, w: 180, h: 60 }, 168, context => {
         rect(context, '#675f43', 708, 128, 8, 40);
@@ -710,6 +723,7 @@
 
     function draw() {
       if (!scenery || !avatar || !viewWidth) return;
+      stale = false;
       const left = viewWidth > WIDTH ? (WIDTH - viewWidth) / 2 :
         clamp(position.x - viewWidth / 2, 0, WIDTH - viewWidth);
       const top = viewHeight > HEIGHT ? (HEIGHT - viewHeight) / 2 :
@@ -768,6 +782,16 @@
       }
     }
 
+    // Everything tick() animates. Other visual changes mark the scene stale instead.
+    function sceneKey() {
+      let key = position.x + ',' + position.y + ',' + avatar.cur + ',' + avatar.frame + ',' + avatar.dir;
+      for (const remote of remoteAvatars.values()) {
+        const sprite = remote.sprite;
+        key += '|' + remote.x + ',' + remote.y + ',' + sprite.cur + ',' + sprite.frame + ',' + sprite.dir;
+      }
+      return key;
+    }
+
     function tick(now) {
       frame = null;
       if (!active()) return stop();
@@ -791,14 +815,30 @@
       position = next;
       for (const remote of remoteAvatars.values()) {
         const blend = Math.min(1, Math.max(0, elapsed) * 12);
-        const x = remote.x + (remote.target.x - remote.x) * blend;
-        const y = remote.y + (remote.target.y - remote.y) * blend;
+        let x = remote.x + (remote.target.x - remote.x) * blend;
+        let y = remote.y + (remote.target.y - remote.y) * blend;
+        // Settle on the target instead of creeping by sub-pixel steps, so an idle town can stop repainting.
+        if (Math.abs(remote.target.x - x) < 0.5 && Math.abs(remote.target.y - y) < 0.5) {
+          x = remote.target.x;
+          y = remote.target.y;
+        }
         if (walkable(x, y)) { remote.x = x; remote.y = y; }
         else { remote.x = remote.target.x; remote.y = remote.target.y; }
         remote.sprite.update(Math.min(elapsed, 0.1));
       }
-      publishPresence();
-      draw();
+      ticking = true;
+      try {
+        // active() has just confirmed that no other screen covers the town.
+        publishPresence(false);
+      } finally {
+        ticking = false;
+      }
+      const key = sceneKey();
+      if (stale || key !== scene || now - paintedAt >= IDLE_REPAINT) {
+        draw();
+        scene = key;
+        paintedAt = now;
+      }
       frame = host.requestAnimationFrame(tick);
     }
 
@@ -810,6 +850,7 @@
       if (!running) return stop();
       if (frame === null) {
         last = null;
+        stale = true;
         frame = host.requestAnimationFrame(tick);
       }
     }
@@ -1046,13 +1087,16 @@
       partyState = state;
       updateRemoteAvatars(state);
       refreshPartyUI();
-      if (initialized && visible(screen)) draw();
+      if (!initialized || !visible(screen)) return;
+      // A running loop repaints on its next frame; drawing here too would paint twice.
+      if (ticking || frame !== null) stale = true;
+      else draw();
     });
     game.Town = { open: returnToTown, openParty, multiplayer };
     return game.Town;
   }
 
-  const api = { WIDTH, HEIGHT, RADIUS, SPEED, SPAWN, BUILDINGS, DESTINATIONS, PLAZA, POND, PATHS, PROPS,
+  const api = { WIDTH, HEIGHT, RADIUS, SPEED, IDLE_REPAINT, SPAWN, BUILDINGS, DESTINATIONS, PLAZA, POND, PATHS, PROPS,
     SOLIDS, walkable, move, nearby, direction, fitScale, install };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else {

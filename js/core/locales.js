@@ -22,8 +22,8 @@ window.PS_LOCALES = (() => {
   document.documentElement.lang = lang;
   if (lang !== 'es' && lang !== 'en') {
     const me = document.currentScript, v = me && /[?&]v=([\w-]+)/.exec(me.src);
-    // Mientras se lee la página: se ejecuta antes que los scripts del juego (defer).
-    document.write(`<script src="js/lang/${lang}.js${v ? '?v=' + v[1] : ''}"><\/script>`);
+    // Deferred, so the page paints while it downloads; it still runs before the game's later deferred scripts.
+    document.write(`<script defer src="js/lang/${lang}.js${v ? '?v=' + v[1] : ''}"><\/script>`);
   }
   return { choices, normalize, lang, locale: choices.find(([id]) => id === lang)[2] };
 })();

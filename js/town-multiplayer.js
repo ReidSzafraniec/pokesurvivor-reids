@@ -5,6 +5,14 @@
   const LOCATIONS = new Set(['town', 'menu', 'ready', 'away']);
   const START_FAILED = 'No se pudo iniciar. Todos deben volver a prepararse.';
 
+  // Poses are flat objects of primitives, so comparing every own field matches the old JSON comparison.
+  function samePose(a, b) {
+    if (!a || !b) return false;
+    for (const field in b) if (a[field] !== b[field]) return false;
+    for (const field in a) if (!(field in b)) return false;
+    return true;
+  }
+
   function create(game, host, { walkable }) {
     const { Social: social, Net: net } = game;
     const now = () => host.performance.now();
@@ -373,7 +381,7 @@
       const next = cleanPose(value);
       if (!next) throw new RangeError('Invalid local town pose');
       syncRoom();
-      if (JSON.stringify(pose) !== JSON.stringify(next)) {
+      if (!samePose(pose, next)) {
         pose = next;
         dirty = true;
         if (pose.location !== 'ready' && menuOpen) setReadyMenuOpen(false);

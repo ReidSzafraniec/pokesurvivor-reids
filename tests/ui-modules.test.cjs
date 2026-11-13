@@ -1,5 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
 const { install } = require('../js/topbar.js');
 
 function element() {
@@ -79,4 +81,32 @@ test('HUD draws at the integer UI scale and touch hit areas follow it', () => {
 test('missing or invalid UI scale falls back to 1', () => {
   assert.equal(create(scaleRoot(() => '')).scale(), 1);
   assert.equal(create(scaleRoot(() => ' 0')).scale(), 1);
+});
+
+function loadLocales(language) {
+  const written = [];
+  const context = {
+    localStorage: { getItem: () => null },
+    location: { pathname: '/' },
+    navigator: { languages: [language], language },
+    document: {
+      documentElement: {},
+      currentScript: { src: 'https://friends.example/js/core/locales.js?v=test-7' },
+      write: html => written.push(html)
+    }
+  };
+  context.window = context;
+  vm.runInNewContext(fs.readFileSync(require.resolve('../js/core/locales.js'), 'utf8'), context);
+  return { written, lang: context.PS_LOCALES.lang };
+}
+
+test('translations load deferred, so the page paints first but the game still runs after them', () => {
+  const { written, lang } = loadLocales('fr-FR');
+  assert.equal(lang, 'fr');
+  assert.deepEqual(written, ['<script defer src="js/lang/fr.js?v=test-7"></script>']);
+  const html = fs.readFileSync(require.resolve('../index.html'), 'utf8');
+  assert(html.indexOf('js/core/locales.js') < html.indexOf('<script defer src="js/app.min.js'),
+    'Deferred scripts run in document order, so the language file precedes the engine');
+  assert.deepEqual(loadLocales('es-ES').written, [], 'Spanish is built in');
+  assert.deepEqual(loadLocales('en-GB').written, [], 'English is built in');
 });

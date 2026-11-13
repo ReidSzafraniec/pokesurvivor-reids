@@ -10,7 +10,7 @@ const { chromium } = require('playwright');
 const root = path.join(__dirname, '..');
 const out = path.join(root, '.shots');
 const TYPES = { '.html': 'text/html; charset=utf-8', '.css': 'text/css', '.js': 'text/javascript', '.json': 'application/json',
-  '.png': 'image/png', '.jpg': 'image/jpeg', '.ttf': 'font/ttf', '.webmanifest': 'application/manifest+json', '.ico': 'image/x-icon' };
+  '.png': 'image/png', '.jpg': 'image/jpeg', '.ttf': 'font/ttf', '.woff2': 'font/woff2', '.webmanifest': 'application/manifest+json', '.ico': 'image/x-icon' };
 // Insets are [top, right, bottom, left] in CSS px.
 const DEVICES = [
   { name: 'iphone-se', width: 375, height: 667, dpr: 2, touch: true, portrait: [20, 0, 0, 0], landscape: [0, 0, 0, 0] },

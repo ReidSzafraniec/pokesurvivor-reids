@@ -147,8 +147,8 @@ test('invalid town movement is rejected explicitly', () => {
 });
 
 function fixture(connection) {
-  const elements = new Map(), frames = new Map(), listeners = new Map(), sync = [];
-  let nextFrame = 0, observer;
+  const elements = new Map(), frames = new Map(), listeners = new Map(), sync = [], created = [];
+  let nextFrame = 0, observer, canvases = 0;
   const brush = new Proxy({}, { get: (target, key) => target[key] || (() => {}), set: (target, key, value) => (target[key] = value, true) });
   const painted = [], rendered = [], labels = [];
   brush.fillRect = (x, y, w, h) => painted.push({ color: brush.fillStyle, x, y, w, h });
@@ -166,7 +166,7 @@ function fixture(connection) {
         contains: value => classes.has(value),
         toggle(value, force) { if (force ?? !classes.has(value)) classes.add(value); else classes.delete(value); }
       },
-      getContext: () => brush,
+      getContext: (type, options) => { node.contextOptions = options; return brush; },
       getBoundingClientRect: () => ({ width: 960, height: 600 }),
       querySelectorAll: selector => selector === '[data-town-move]' ? pads : [],
       setAttribute() {},
@@ -192,7 +192,12 @@ function fixture(connection) {
   const doc = {
     body: {}, hidden: false,
     getElementById: id => elements.get(id),
-    createElement: () => element('scenery'),
+    createElement: () => {
+      canvases++;
+      const node = element('scenery');
+      created.push(node);
+      return node;
+    },
     addEventListener: (name, handler) => listeners.set(name, handler),
     querySelector(selector) {
       if (selector.startsWith('.scr:')) {
@@ -299,6 +304,7 @@ function fixture(connection) {
     return event;
   }
   return { game, host, elements, frames, sync, avatars, drawn, painted, rendered, labels, actions, advance, key, pads,
+    canvases: () => canvases, created,
     observe: () => observer(), visible: id => !elements.get(id).classList.contains('hidden') };
 }
 
@@ -564,8 +570,101 @@ test('cached buildings render behind the partner at their entrance and over the 
   f.game.Flow.goMenu();
   const count = f.painted.length;
   f.advance(0);
-  f.advance(100);
+  f.advance(town.IDLE_REPAINT);
   assert.equal(f.painted.length - count, 2, 'Only the viewport background is filled; scenery is not repainted');
+});
+
+test('identical trees, lamps and benches share one cached bitmap per kind', () => {
+  const f = fixture();
+  let layers = 0;
+  const brush = f.elements.get('town-map').getContext(), drawImage = brush.drawImage;
+  brush.drawImage = (image, x, y) => {
+    if (image.width !== town.WIDTH) layers++;
+    return drawImage(image, x, y);
+  };
+  f.game.Flow.goMenu();
+  f.advance(0);
+  assert(layers > 100, 'Every visible tree is still drawn');
+  // Scenery, seven buildings, board, payphone, route sign, and one tree, lamp and bench.
+  assert.equal(f.canvases(), 14);
+});
+
+test('cached town art stays in system memory so a GPU reset cannot erase it', () => {
+  const f = fixture();
+  assert.equal(f.created.length, 14);
+  for (const canvas of f.created) assert.deepEqual(canvas.contextOptions, { willReadFrequently: true });
+  // The on-screen map is repainted every frame, so it keeps GPU acceleration.
+  assert.equal(f.elements.get('town-map').contextOptions, undefined);
+});
+
+test('an idle town repaints only for animation frames, state changes or the periodic refresh', () => {
+  const f = fixture();
+  f.game.Flow.goMenu();
+  const avatar = f.avatars.at(-1);
+  const paints = () => f.painted.filter(p => p.color === '#315749').length;
+  f.advance(0);
+  let count = paints();
+  f.advance(16);
+  assert.equal(paints(), count, 'An unchanged frame is not repainted');
+  avatar.frame = 1;
+  f.advance(32);
+  assert.equal(paints(), count + 1, 'A new sprite frame is repainted');
+  count = paints();
+  f.advance(48);
+  f.advance(32 + town.IDLE_REPAINT);
+  assert.equal(paints(), count + 1, 'Late-loading sprite sheets still appear');
+  count = paints();
+  f.key('keydown', 'KeyD');
+  f.advance(64 + town.IDLE_REPAINT);
+  f.advance(80 + town.IDLE_REPAINT);
+  assert.equal(paints(), count + 2, 'Walking repaints every frame');
+});
+
+test('a party member walking in town repaints once per frame', () => {
+  const { towns } = sharedTown();
+  const f = towns[1];
+  let scenery = 0;
+  const brush = f.elements.get('town-map').getContext(), drawImage = brush.drawImage;
+  brush.drawImage = (image, x, y) => {
+    if (image.width === town.WIDTH && image.height === town.HEIGHT) scenery++;
+    return drawImage(image, x, y);
+  };
+  f.advance(0);
+  f.key('keydown', 'KeyD');
+  for (const time of [16, 32, 48]) {
+    scenery = 0;
+    f.advance(time);
+    assert.equal(scenery, 1, 'Shared presence updates do not trigger a second paint');
+  }
+});
+
+test('a town stops repainting soon after a party member stops walking', () => {
+  const { network, towns } = sharedTown();
+  const walker = towns[1], viewer = towns[3];
+  let scenery = 0, time = 0;
+  const brush = viewer.elements.get('town-map').getContext(), drawImage = brush.drawImage;
+  brush.drawImage = (image, x, y) => {
+    if (image.width === town.WIDTH && image.height === town.HEIGHT) scenery++;
+    return drawImage(image, x, y);
+  };
+  const frames = count => {
+    for (let i = 0; i < count; i++) {
+      time += 16;
+      walker.advance(time);
+      viewer.advance(time);
+      network.advance(16);
+    }
+  };
+  frames(1);
+  walker.key('keydown', 'ArrowRight');
+  frames(20);
+  walker.key('keyup', 'ArrowRight');
+  frames(30);
+  const mate = viewer.game.Town.multiplayer.getSnapshot().members.find(m => m.uid === 'p1');
+  assert(mate.pose.x > town.SPAWN.x + 20 && !mate.pose.walking, 'The viewer received the final pose');
+  scenery = 0;
+  frames(10);
+  assert(scenery <= 1, 'Only the periodic refresh may repaint a settled town; got ' + scenery);
 });
 
 test('every destination dispatches its existing menu handler once and returns to town', () => {

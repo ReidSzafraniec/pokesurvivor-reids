@@ -1,16 +1,16 @@
-const CODE = 'ps-code-v29', ART = 'ps-art-v1';
+const CODE = 'ps-code-v30', ART = 'ps-art-v1';
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CODE).then(c => c.addAll([
-    './', './index.html', './en/', './css/style.css?v=starter-pixel-ui-1', './manifest.webmanifest',
-    './js/core/locales.js?v=ba2ae89740', './js/noframe.js', './js/boot.js',
+    './', './index.html', './en/', './css/style.css?v=woff2-fonts-1', './manifest.webmanifest',
+    './js/core/locales.js?v=10c31f2e94', './js/noframe.js', './js/boot.js',
     './js/data/learnsets.js?v=base-buffs-5', './js/training.js?v=starter-tutorial-1',
-    './js/town-multiplayer.js?v=shared-town-2', './js/town.js?v=shared-town-1',
+    './js/town-multiplayer.js?v=town-render-1', './js/town.js?v=gpu-reset-1',
     './js/tutorial.js?v=starter-pixel-ui-1', './js/onboarding.js?v=starter-tutorial-1',
     './js/hosting-config.js?v=hosting-1', './js/hosting.js?v=mission-calendar-2',
     './js/topbar.js?v=pixel-ui-1', './js/ui-scale.js?v=pixel-ui-1',
     './js/body-collision.js?v=body-contact-1',
-    './js/app.min.js?v=76c22073c4'
+    './js/app.min.js?v=82a5992e76'
   ])).catch(error => {
     console.error('[PWA] Could not cache game code:', error);
     throw error;
@@ -45,8 +45,10 @@ self.addEventListener('fetch', e => {
   // muy anterior.
   const scope = new URL(self.registration.scope).pathname;
   const game = req.mode === 'navigate' && (url.pathname === scope || url.pathname === scope + 'index.html');
+  // Uncacheable requests, such as the timestamped update check, would add a new entry on every call.
+  const keep = req.cache !== 'no-store';
   e.respondWith(fetch(req).then(res => {
-    if (res.ok && !res.redirected) {
+    if (keep && res.ok && !res.redirected) {
       const copy = res.clone(), copy2 = game ? res.clone() : null;
       caches.open(CODE).then(c => { c.put(req, copy); if (copy2) c.put('./index.html', copy2); });
     }
