@@ -147,7 +147,7 @@ test('invalid town movement is rejected explicitly', () => {
 });
 
 function fixture(connection) {
-  const elements = new Map(), frames = new Map(), listeners = new Map(), sync = [];
+  const elements = new Map(), frames = new Map(), listeners = new Map(), sync = [], created = [];
   let nextFrame = 0, observer, canvases = 0;
   const brush = new Proxy({}, { get: (target, key) => target[key] || (() => {}), set: (target, key, value) => (target[key] = value, true) });
   const painted = [], rendered = [], labels = [];
@@ -166,7 +166,7 @@ function fixture(connection) {
         contains: value => classes.has(value),
         toggle(value, force) { if (force ?? !classes.has(value)) classes.add(value); else classes.delete(value); }
       },
-      getContext: () => brush,
+      getContext: (type, options) => { node.contextOptions = options; return brush; },
       getBoundingClientRect: () => ({ width: 960, height: 600 }),
       querySelectorAll: selector => selector === '[data-town-move]' ? pads : [],
       setAttribute() {},
@@ -192,7 +192,12 @@ function fixture(connection) {
   const doc = {
     body: {}, hidden: false,
     getElementById: id => elements.get(id),
-    createElement: () => (canvases++, element('scenery')),
+    createElement: () => {
+      canvases++;
+      const node = element('scenery');
+      created.push(node);
+      return node;
+    },
     addEventListener: (name, handler) => listeners.set(name, handler),
     querySelector(selector) {
       if (selector.startsWith('.scr:')) {
@@ -299,7 +304,7 @@ function fixture(connection) {
     return event;
   }
   return { game, host, elements, frames, sync, avatars, drawn, painted, rendered, labels, actions, advance, key, pads,
-    canvases: () => canvases,
+    canvases: () => canvases, created,
     observe: () => observer(), visible: id => !elements.get(id).classList.contains('hidden') };
 }
 
@@ -582,6 +587,14 @@ test('identical trees, lamps and benches share one cached bitmap per kind', () =
   assert(layers > 100, 'Every visible tree is still drawn');
   // Scenery, seven buildings, board, payphone, route sign, and one tree, lamp and bench.
   assert.equal(f.canvases(), 14);
+});
+
+test('cached town art stays in system memory so a GPU reset cannot erase it', () => {
+  const f = fixture();
+  assert.equal(f.created.length, 14);
+  for (const canvas of f.created) assert.deepEqual(canvas.contextOptions, { willReadFrequently: true });
+  // The on-screen map is repainted every frame, so it keeps GPU acceleration.
+  assert.equal(f.elements.get('town-map').contextOptions, undefined);
 });
 
 test('an idle town repaints only for animation frames, state changes or the periodic refresh', () => {

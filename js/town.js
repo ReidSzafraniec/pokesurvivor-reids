@@ -6,6 +6,8 @@
   const WIDTH = 1280, HEIGHT = 1024, RADIUS = 10, SPEED = 170;
   // An unchanged scene is still repainted this often (ms), e.g. once a sprite sheet finishes loading.
   const IDLE_REPAINT = 250;
+  // Painted-once art stays CPU-backed: a GPU process reset (e.g. on Xbox Edge) would wipe GPU canvases.
+  const CACHED_ART = Object.freeze({ willReadFrequently: true });
   const SPAWN = Object.freeze({ x: 640, y: 568 });
   const BUILDINGS = Object.freeze([
     ['training', 'Entrenamiento', 192, 176, 208, 160, '#ae9b57', 'gym'],
@@ -583,7 +585,7 @@
         image = doc.createElement('canvas');
         image.width = bounds.w;
         image.height = bounds.h;
-        const brush = image.getContext('2d');
+        const brush = image.getContext('2d', CACHED_ART);
         brush.translate(-bounds.x, -bounds.y);
         paint(brush);
         if (key) sharedArt.set(key, image);
@@ -597,7 +599,7 @@
       scenery.height = HEIGHT;
       layers = [];
       sharedArt = new Map();
-      const brush = scenery.getContext('2d');
+      const brush = scenery.getContext('2d', CACHED_ART);
       rect(brush, '#8cbd78', 0, 0, WIDTH, HEIGHT);
       for (let y = 0; y < HEIGHT; y += 8) {
         for (let x = 0; x < WIDTH; x += 8) {
